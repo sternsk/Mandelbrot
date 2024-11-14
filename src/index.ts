@@ -3,21 +3,25 @@ import { boundaryPoints, calcMandelbrotOutline } from "./calcMandelbrotOutline.j
 import { Mandelbrot } from "./calcnPlot.js";
 
 const wrapper = document.getElementById("wrapper")
-const canvasWidth = 800
-const canvasHeight = 800
-let width = 4
+export const svgWidth = 600
+export const svgHeight = 480
+let width = 2.5
 let height = width
 export let iterationDepth = 5;  // Iterationstiefe
-export let xMin = -2.5, xMax = xMin + width
-export let yMin = -2, yMax = yMin + height;
+export let xMin = -2, xMax = xMin + width
+export let yMin = -1.2, yMax = yMin + height
 
 const headline: HTMLHeadElement = document.createElement("h1")
 headline.innerHTML = `Mandelbrot-Grenzlinie bei Iterationstiefe i = ${iterationDepth}`
 
-export const canvas = document.createElement("canvas")
-canvas.setAttribute("id", "mandelbrotCanvas")
-canvas.setAttribute("width", `${canvasWidth}px`)
-canvas.setAttribute("height", `${canvasHeight}px`)
+export const overviewSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+overviewSvg.setAttribute("id", "mandelbrotSvg")
+overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
+overviewSvg.setAttribute("width", `${svgWidth}px`)
+overviewSvg.setAttribute("height", `${svgHeight}px`)
+
+const outlinePath = document.createElementNS("http://www.w3.org/2000/svg", "path")
+overviewSvg.appendChild(outlinePath)
 
 const iterationsSliderLabel = document.createElement("label")
 iterationsSliderLabel.setAttribute("for", "iterationsSlider")
@@ -56,7 +60,7 @@ const zoomSliderLabel = document.createElement("label")
 zoomSliderLabel.setAttribute("for", "zoomSlider")
 zoomSliderLabel.innerHTML = "zoom: "
 const zoomSlider = document.createElement("input")
-zoomSlider.id = "widthSlider"
+zoomSlider.id = "zoomSlider"
 zoomSlider.type = "range"
 zoomSlider.min = ".1"
 zoomSlider.max = "4"
@@ -72,24 +76,23 @@ wrapper?.appendChild(yMinSliderLabel)
 wrapper?.appendChild(yMinSlider)
 wrapper?.appendChild(zoomSliderLabel)
 wrapper?.appendChild(zoomSlider)
-wrapper?.appendChild(canvas)
+wrapper?.appendChild(overviewSvg)
 
-// draw a MandelbrotCloud for reference
-const mandelbrot = new Mandelbrot()
-mandelbrot.drawCloud()
-const ctx = canvas.getContext("2d")
 
 // calc and plot MandelbrotOutline
-console.log("calling calcMandelbrotOutline")
 calcMandelbrotOutline()
 drawLines()
+
+
+// Draw a Mandelbrot cloud for reference
+const mandelbrot = new Mandelbrot();
+mandelbrot.drawCloud();
 
 iterationsSlider.addEventListener("input", function(event){
     iterationDepth = parseInt(iterationsSlider.value)
     headline.innerHTML = `Mandelbrot-Grenzlinie bei Iterationstiefe i = ${iterationDepth}`
     mandelbrot.drawCloud()
     calcMandelbrotOutline()
-    if (iterationDepth<11)
     drawLines()
 })
 
@@ -118,15 +121,21 @@ zoomSlider.addEventListener("input", function(){
     yMin -=(height - oldHeight)/2
     yMax = yMin + height
 
+    overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
+
     xMinSlider.step = (parseFloat(zoomSlider.value)/40).toString()
     yMinSlider.step = (parseFloat(zoomSlider.value)/40).toString()
     mandelbrot.drawCloud()
     drawLines()
 })
 
+overviewSvg.addEventListener("mouseenter", () => {
+    console.log("mouse entered");
+})
+
 function mapToCanvas(point: {real: number, imag: number}): {x: number, y: number}{
-    const x = ((point.real - xMin) / (xMax - xMin)) * canvasWidth; // Bereich real -2 bis 2 auf 0 bis canvasWidth skalieren
-    const y =   ((point.imag - yMin) / (yMax - yMin)) * canvasHeight; // Bereich imag -2 bis 2 auf 0 bis canvasHeight skalieren (invertiert für Canvas-Koordinaten)
+    const x = ((point.real - xMin) / (xMax - xMin)) * svgWidth; // Bereich real -2 bis 2 auf 0 bis canvasWidth skalieren
+    const y =   ((point.imag - yMin) / (yMax - yMin)) * svgHeight; // Bereich imag -2 bis 2 auf 0 bis canvasHeight skalieren (invertiert für Canvas-Koordinaten)
     return { x, y };
 }
 
@@ -135,17 +144,15 @@ function drawLines(){
         console.warn("Not enough points to draw lines")
         return;
     }
-    const canvasPoints = boundaryPoints.map(point => mapToCanvas(point))
-    ctx?.beginPath();
-    ctx?.moveTo(canvasPoints[0].x, canvasPoints[0].y)
-
-    // Linien zu den restlichen Punkten zeichnen
-    for (let i = 1; i < canvasPoints.length; i++) {
-    ctx?.lineTo(canvasPoints[i].x, canvasPoints[i].y);
-
-    // Linienfarbe und Breite setzen, und die Linien zeichnen
-    ctx!.strokeStyle = "black";
-    ctx!.lineWidth = 1;
-    ctx?.stroke();
-  }
+    outlinePath.innerHTML = ""
+    let pathData = `M${boundaryPoints[0].real} ${boundaryPoints[0].imag}`
+    for(let i = 1; i<boundaryPoints.length; i++){
+        pathData += `L ${boundaryPoints[i].real} ${boundaryPoints[i].imag}`
+    }
+    outlinePath.setAttribute("id", "outlinePath")
+    outlinePath.setAttribute("fill", "none")
+    outlinePath.setAttribute("stroke", "black")
+    outlinePath.setAttribute("stroke-width", ".5 px")
+    outlinePath.setAttribute("vector-effect", "non-scaling-stroke")
+    outlinePath.setAttribute("d", `${pathData}`)
 }

@@ -13,10 +13,9 @@ export function calcMandelbrotOutline(){
     const samplingRate = 1/Math.pow(iterationDepth,3)
     const sampleRotation = Math.PI/8
     let actualPoint = add(startPoint, scale(directionVector, samplingRate/2))
-
+    
     console.log("samplingRate: "+samplingRate+" at iterationDepth: "+iterationDepth)
     
-
     boundaryPoints.push(actualPoint)
     
     // then move upwards from here on

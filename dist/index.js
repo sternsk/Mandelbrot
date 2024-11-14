@@ -66,9 +66,8 @@
   // src/calcnPlot.ts
   var Mandelbrot = class {
     constructor() {
-      __publicField(this, "ctx", canvas.getContext("2d"));
-      __publicField(this, "width", canvas.width);
-      __publicField(this, "height", canvas.height);
+      __publicField(this, "width", overviewSvg.getBBox().width);
+      __publicField(this, "height", overviewSvg.getBBox().height);
       __publicField(this, "boundaryPoints", []);
     }
     // Skalierungsfunktionen von Canvas-Koordinaten auf komplexe Zahlenebene
@@ -80,7 +79,7 @@
     }
     // Mandelbrot-Iteration
     mandelbrot(viewPortCoordinate) {
-      const c = { real: this.scaleX(viewPortCoordinate.x), imag: this.scaleY(viewPortCoordinate.y) };
+      const c = viewPortCoordinate;
       let z = { real: 0, imag: 0 };
       let iterations = 0;
       while (iterations < iterationDepth && z.real * z.real + z.imag * z.imag <= 4) {
@@ -95,43 +94,55 @@
     }
     // Grenzlinie berechnen und plotten
     drawCloud() {
+      var _a;
       this.boundaryPoints = [];
-      for (let x = 0; x < this.width; x++) {
-        for (let y = 0; y < this.height; y++) {
-          const c = { x, y };
+      const sampleWidth = (xMax - xMin) / svgWidth;
+      const sampleHeight = (yMax - yMin) / svgHeight;
+      for (let x = xMin; x < xMax; x += sampleWidth) {
+        for (let y = yMin; y < yMax; y += sampleHeight) {
+          const c = { real: x, imag: y };
           const borderPoint = this.mandelbrot(c);
           if (borderPoint)
             this.boundaryPoints.push(borderPoint);
         }
       }
-      if (this.ctx) {
-        this.ctx.fillStyle = "white";
-        this.ctx.fillRect(0, 0, canvas.width, canvas.height);
-        this.ctx.fillStyle = "blue";
-        this.boundaryPoints.forEach((point) => {
-          this.ctx.fillRect(point.x, point.y, 1, 1);
-        });
+      const outlinePath2 = document.getElementById("outlinePath");
+      const oldCloudPath = document.getElementById("cloudPath");
+      (_a = oldCloudPath == null ? void 0 : oldCloudPath.parentNode) == null ? void 0 : _a.removeChild(oldCloudPath);
+      const cloudPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      cloudPath.setAttribute("fill", "none");
+      cloudPath.setAttribute("stroke", "darkblue");
+      cloudPath.setAttribute("stroke-width", `${sampleHeight}`);
+      cloudPath.setAttribute("id", "cloudPath");
+      overviewSvg.insertBefore(cloudPath, outlinePath2);
+      let pathData = `M${this.boundaryPoints[0].real} ${this.boundaryPoints[0].imag} v${sampleWidth}`;
+      for (let i = 1; i < this.boundaryPoints.length; i++) {
+        pathData += `M ${this.boundaryPoints[i].real}${this.boundaryPoints[i].imag} v${sampleWidth}`;
       }
+      cloudPath.setAttribute("d", `${pathData}`);
     }
   };
 
   // src/index.ts
   var wrapper = document.getElementById("wrapper");
-  var canvasWidth = 800;
-  var canvasHeight = 800;
-  var width = 4;
+  var svgWidth = 600;
+  var svgHeight = 480;
+  var width = 2.5;
   var height = width;
   var iterationDepth = 5;
-  var xMin = -2.5;
+  var xMin = -2;
   var xMax = xMin + width;
-  var yMin = -2;
+  var yMin = -1.2;
   var yMax = yMin + height;
   var headline = document.createElement("h1");
   headline.innerHTML = `Mandelbrot-Grenzlinie bei Iterationstiefe i = ${iterationDepth}`;
-  var canvas = document.createElement("canvas");
-  canvas.setAttribute("id", "mandelbrotCanvas");
-  canvas.setAttribute("width", `${canvasWidth}px`);
-  canvas.setAttribute("height", `${canvasHeight}px`);
+  var overviewSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  overviewSvg.setAttribute("id", "mandelbrotSvg");
+  overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+  overviewSvg.setAttribute("width", `${svgWidth}px`);
+  overviewSvg.setAttribute("height", `${svgHeight}px`);
+  var outlinePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  overviewSvg.appendChild(outlinePath);
   var iterationsSliderLabel = document.createElement("label");
   iterationsSliderLabel.setAttribute("for", "iterationsSlider");
   iterationsSliderLabel.innerHTML = "iterations: ";
@@ -166,7 +177,7 @@
   zoomSliderLabel.setAttribute("for", "zoomSlider");
   zoomSliderLabel.innerHTML = "zoom: ";
   var zoomSlider = document.createElement("input");
-  zoomSlider.id = "widthSlider";
+  zoomSlider.id = "zoomSlider";
   zoomSlider.type = "range";
   zoomSlider.min = ".1";
   zoomSlider.max = "4";
@@ -181,20 +192,17 @@
   wrapper == null ? void 0 : wrapper.appendChild(yMinSlider);
   wrapper == null ? void 0 : wrapper.appendChild(zoomSliderLabel);
   wrapper == null ? void 0 : wrapper.appendChild(zoomSlider);
-  wrapper == null ? void 0 : wrapper.appendChild(canvas);
-  var mandelbrot2 = new Mandelbrot();
-  mandelbrot2.drawCloud();
-  var ctx = canvas.getContext("2d");
-  console.log("calling calcMandelbrotOutline");
+  wrapper == null ? void 0 : wrapper.appendChild(overviewSvg);
   calcMandelbrotOutline();
   drawLines();
+  var mandelbrot2 = new Mandelbrot();
+  mandelbrot2.drawCloud();
   iterationsSlider.addEventListener("input", function(event) {
     iterationDepth = parseInt(iterationsSlider.value);
     headline.innerHTML = `Mandelbrot-Grenzlinie bei Iterationstiefe i = ${iterationDepth}`;
     mandelbrot2.drawCloud();
     calcMandelbrotOutline();
-    if (iterationDepth < 11)
-      drawLines();
+    drawLines();
   });
   xMinSlider.addEventListener("input", function() {
     xMin = parseFloat(xMinSlider.value);
@@ -217,30 +225,31 @@
     xMax = xMin + width;
     yMin -= (height - oldHeight) / 2;
     yMax = yMin + height;
+    overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
     xMinSlider.step = (parseFloat(zoomSlider.value) / 40).toString();
     yMinSlider.step = (parseFloat(zoomSlider.value) / 40).toString();
     mandelbrot2.drawCloud();
     drawLines();
   });
-  function mapToCanvas(point) {
-    const x = (point.real - xMin) / (xMax - xMin) * canvasWidth;
-    const y = (point.imag - yMin) / (yMax - yMin) * canvasHeight;
-    return { x, y };
-  }
+  overviewSvg.addEventListener("mouseenter", () => {
+    console.log("mouse entered");
+  });
   function drawLines() {
     if (boundaryPoints.length < 2) {
       console.warn("Not enough points to draw lines");
       return;
     }
-    const canvasPoints = boundaryPoints.map((point) => mapToCanvas(point));
-    ctx == null ? void 0 : ctx.beginPath();
-    ctx == null ? void 0 : ctx.moveTo(canvasPoints[0].x, canvasPoints[0].y);
-    for (let i = 1; i < canvasPoints.length; i++) {
-      ctx == null ? void 0 : ctx.lineTo(canvasPoints[i].x, canvasPoints[i].y);
-      ctx.strokeStyle = "black";
-      ctx.lineWidth = 1;
-      ctx == null ? void 0 : ctx.stroke();
+    outlinePath.innerHTML = "";
+    let pathData = `M${boundaryPoints[0].real} ${boundaryPoints[0].imag}`;
+    for (let i = 1; i < boundaryPoints.length; i++) {
+      pathData += `L ${boundaryPoints[i].real} ${boundaryPoints[i].imag}`;
     }
+    outlinePath.setAttribute("id", "outlinePath");
+    outlinePath.setAttribute("fill", "none");
+    outlinePath.setAttribute("stroke", "black");
+    outlinePath.setAttribute("stroke-width", ".5 px");
+    outlinePath.setAttribute("vector-effect", "non-scaling-stroke");
+    outlinePath.setAttribute("d", `${pathData}`);
   }
 })();
 //# sourceMappingURL=index.js.map
