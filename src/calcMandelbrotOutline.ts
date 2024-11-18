@@ -22,7 +22,7 @@ export function calcMandelbrotOutline(){
     directionVector = {real: 0, imag: 1}
 
     //move around the whole mandelbroz
-    while (actualPoint.real < 0){
+    while (actualPoint.imag >= 0){
     //for (let i = 0; i  < 1500; i++) {
        
         // test if actualPoint + directionVector is inside the Mandelbrot

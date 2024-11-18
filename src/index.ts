@@ -1,10 +1,15 @@
 
+console.log("ver 2244")
+
 import { boundaryPoints, calcMandelbrotOutline } from "./calcMandelbrotOutline.js";
 import { Mandelbrot } from "./calcnPlot.js";
+import { extrapolateReal, extrapolateImag, extrapolate } from "./extrapolate.js";
+import { createOscillatorFromWaveform} from "./library.js";
+
 
 const wrapper = document.getElementById("wrapper")
-export const svgWidth = 600
-export const svgHeight = 480
+export const overviewSvgWidth =480
+export const overviewSvgHeight = 420
 let width = 2.5
 let height = width
 export let iterationDepth = 5;  // Iterationstiefe
@@ -17,8 +22,25 @@ headline.innerHTML = `Mandelbrot-Grenzlinie bei Iterationstiefe i = ${iterationD
 export const overviewSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
 overviewSvg.setAttribute("id", "mandelbrotSvg")
 overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
-overviewSvg.setAttribute("width", `${svgWidth}px`)
-overviewSvg.setAttribute("height", `${svgHeight}px`)
+overviewSvg.setAttribute("width", `${overviewSvgWidth}px`)
+overviewSvg.setAttribute("height", `${overviewSvgHeight}px`)
+
+const xDataSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+const xDataSvgWidth = 200
+const xDataSvgHeight = 100
+xDataSvg.setAttribute("id", "xDataSvg")
+xDataSvg.setAttribute("width", `${xDataSvgWidth}`)
+xDataSvg.setAttribute("height", `${xDataSvgHeight}`)
+/*xDataSvg.style.position = "absolute"
+xDataSvg.style.x = "800px"
+xDataSvg.style.top = "400px"
+*/
+const yDataSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+const yDataSvgWidth = 200
+const yDataSvgHeight = 100
+xDataSvg.setAttribute("id", "xDataSvg")
+xDataSvg.setAttribute("width", `${yDataSvgWidth}`)
+xDataSvg.setAttribute("height", `${yDataSvgHeight}`)
 
 const outlinePath = document.createElementNS("http://www.w3.org/2000/svg", "path")
 overviewSvg.appendChild(outlinePath)
@@ -30,7 +52,7 @@ const iterationsSlider = document.createElement("input")
 iterationsSlider.id = "iterationsSlider"
 iterationsSlider.type = "range"
 iterationsSlider.min = "2"
-iterationsSlider.max = "13"
+iterationsSlider.max = "15"
 iterationsSlider.step = "1"
 iterationsSlider.value = `${iterationDepth}`
 
@@ -67,7 +89,28 @@ zoomSlider.max = "4"
 zoomSlider.step = ".1"
 zoomSlider.value = `${width}`
 
+const oscXValues = document.createElement("button")
+oscXValues.innerHTML = "oscillate x values"
+oscXValues.addEventListener("click", ()=>{
+    console.log("trying to create audio context")
+    createOscillatorFromWaveform(extrapolate(boundaryPoints, "imag"))
+})
+
+const frequencySliderLabel = document.createElement("label")
+frequencySliderLabel.setAttribute("for", "frequencySlider")
+frequencySliderLabel.innerHTML = "frequency: "
+const frequencySlider = document.createElement("input")
+frequencySlider.id = "frequencySlider"
+frequencySlider.type = "range"
+frequencySlider.min = "1"
+frequencySlider.max = "10"
+frequencySlider.addEventListener("input", (event) => {
+    const frequency = (event.target as HTMLInputElement).valueAsNumber;
+    //oscillator.frequency.value = frequency; // Ändert die Frequenz in Echtzeit
+  });
+
 wrapper?.appendChild(headline)
+wrapper?.appendChild(oscXValues)
 wrapper?.appendChild(iterationsSliderLabel)
 wrapper?.appendChild(iterationsSlider)
 wrapper?.appendChild(xMinSliderLabel)
@@ -77,11 +120,18 @@ wrapper?.appendChild(yMinSlider)
 wrapper?.appendChild(zoomSliderLabel)
 wrapper?.appendChild(zoomSlider)
 wrapper?.appendChild(overviewSvg)
-
+wrapper?.appendChild(xDataSvg)
+wrapper?.appendChild(yDataSvg)
 
 // calc and plot MandelbrotOutline
 calcMandelbrotOutline()
 drawLines()
+
+let xDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "real"))
+let yDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "imag"))
+
+xDataSvg.appendChild(xDataLine)
+yDataSvg.appendChild(yDataLine)
 
 
 // Draw a Mandelbrot cloud for reference
@@ -94,6 +144,13 @@ iterationsSlider.addEventListener("input", function(event){
     mandelbrot.drawCloud()
     calcMandelbrotOutline()
     drawLines()
+    xDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "real"))
+    xDataSvg.innerHTML = ""
+    xDataSvg.appendChild(xDataLine)
+    
+    yDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "imag"))
+    yDataSvg.innerHTML = ""
+    yDataSvg.appendChild(yDataLine)
 })
 
 xMinSlider.addEventListener("input", function(){
@@ -134,8 +191,8 @@ overviewSvg.addEventListener("mouseenter", () => {
 })
 
 function mapToCanvas(point: {real: number, imag: number}): {x: number, y: number}{
-    const x = ((point.real - xMin) / (xMax - xMin)) * svgWidth; // Bereich real -2 bis 2 auf 0 bis canvasWidth skalieren
-    const y =   ((point.imag - yMin) / (yMax - yMin)) * svgHeight; // Bereich imag -2 bis 2 auf 0 bis canvasHeight skalieren (invertiert für Canvas-Koordinaten)
+    const x = ((point.real - xMin) / (xMax - xMin)) * overviewSvgWidth; // Bereich real -2 bis 2 auf 0 bis canvasWidth skalieren
+    const y =   ((point.imag - yMin) / (yMax - yMin)) * overviewSvgHeight; // Bereich imag -2 bis 2 auf 0 bis canvasHeight skalieren (invertiert für Canvas-Koordinaten)
     return { x, y };
 }
 
@@ -155,4 +212,61 @@ function drawLines(){
     outlinePath.setAttribute("stroke-width", ".5 px")
     outlinePath.setAttribute("vector-effect", "non-scaling-stroke")
     outlinePath.setAttribute("d", `${pathData}`)
+}
+
+function drawExtrapolatedCurve(points: {index: number, value: number}[]): SVGPathElement{
+    
+    // Skalierung für die X- und Y-Koordinaten basierend auf `i` und `real`-Werten
+    const width = xDataSvgWidth
+    const height = xDataSvgHeight
+    const xScale = width / (points.length - 1); // Breite durch Anzahl der Punkte
+    const yMin = Math.min(...points.map(p => p.value));
+    const yMax = Math.max(...points.map(p => p.value));
+    const yScale = height / (yMax - yMin);
+
+    // Erzeuge die "d"-Attribute für das <path>-Element
+    let pathData = `M 0 ${height - (points[0].value - yMin) * yScale}`;
+    for (let j = 1; j < points.length; j++) {
+        const x = j * xScale;
+        const y = height - (points[j].value - yMin) * yScale;
+        pathData += ` L ${x} ${y}`;
+    }
+    
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("id", "extrapolatedCurve")
+    path.setAttribute("d", pathData);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "blue");
+    path.setAttribute("stroke-width", "2");
+    return (path);
+}
+
+function drawExtrapolatedCurveForImagValues(points: {i: number, imag: number}[]){
+    
+    // Skalierung für die X- und Y-Koordinaten basierend auf `i` und `real`-Werten
+    const width = xDataSvgWidth
+    const height = xDataSvgHeight
+    const xScale = width / (points.length - 1); // Breite durch Anzahl der Punkte
+    const yMin = Math.min(...points.map(p => p.imag));
+    const yMax = Math.max(...points.map(p => p.imag));
+    const yScale = height / (yMax - yMin);
+
+    // Erzeuge die "d"-Attribute für das <path>-Element
+    let pathData = `M 0 ${height - (points[0].imag - yMin) * yScale}`;
+    for (let j = 1; j < points.length; j++) {
+        const x = j * xScale;
+        const y = height - (points[j].imag - yMin) * yScale;
+        pathData += ` L ${x} ${y}`;
+    }
+    const oldPath = document.getElementById("extrapolatedImagCurve")
+    oldPath?.parentNode?.removeChild(oldPath)
+
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("id", "extrapolatedImagCurve")
+    path.setAttribute("d", pathData);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "blue");
+    path.setAttribute("stroke-width", "2");
+    yDataSvg.appendChild(path);
 }
