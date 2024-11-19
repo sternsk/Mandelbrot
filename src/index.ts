@@ -4,7 +4,7 @@ console.log("ver 2244")
 import { boundaryPoints, calcMandelbrotOutline } from "./calcMandelbrotOutline.js";
 import { Mandelbrot } from "./calcnPlot.js";
 import { extrapolateReal, extrapolateImag, extrapolate } from "./extrapolate.js";
-import { createOscillatorFromWaveform} from "./library.js";
+import { createOscillatorFromWaveform, stopSound, oscillator} from "./library.js";
 
 
 const wrapper = document.getElementById("wrapper")
@@ -12,7 +12,7 @@ export const overviewSvgWidth =480
 export const overviewSvgHeight = 420
 let width = 2.5
 let height = width
-export let iterationDepth = 5;  // Iterationstiefe
+export let iterationDepth = 4;  // Iterationstiefe
 export let xMin = -2, xMax = xMin + width
 export let yMin = -1.2, yMax = yMin + height
 
@@ -89,25 +89,40 @@ zoomSlider.max = "4"
 zoomSlider.step = ".1"
 zoomSlider.value = `${width}`
 
+
+
 const oscXValues = document.createElement("button")
-oscXValues.innerHTML = "oscillate x values"
+oscXValues.innerHTML = "oscillate boundary points"
+let isPlaying = false
 oscXValues.addEventListener("click", ()=>{
-    console.log("trying to create audio context")
-    createOscillatorFromWaveform(extrapolate(boundaryPoints, "imag"))
+    if(!isPlaying){
+        createOscillatorFromWaveform(boundaryPoints)
+        oscXValues.textContent = "stop sound"
+    }
+    if(isPlaying){
+        stopSound()
+        oscXValues.textContent = "oscillate boundary points"
+    }
+    isPlaying = !isPlaying
+
 })
 
 const frequencySliderLabel = document.createElement("label")
 frequencySliderLabel.setAttribute("for", "frequencySlider")
 frequencySliderLabel.innerHTML = "frequency: "
-const frequencySlider = document.createElement("input")
+export const frequencySlider = document.createElement("input")
 frequencySlider.id = "frequencySlider"
 frequencySlider.type = "range"
 frequencySlider.min = "1"
-frequencySlider.max = "10"
+frequencySlider.max = "440"
+frequencySlider.value = "1"
+
 frequencySlider.addEventListener("input", (event) => {
     const frequency = (event.target as HTMLInputElement).valueAsNumber;
-    //oscillator.frequency.value = frequency; // Ändert die Frequenz in Echtzeit
+    if(oscillator)
+        oscillator.frequency.value = frequency; // Ändert die Frequenz in Echtzeit
   });
+
 
 wrapper?.appendChild(headline)
 wrapper?.appendChild(oscXValues)
@@ -122,6 +137,7 @@ wrapper?.appendChild(zoomSlider)
 wrapper?.appendChild(overviewSvg)
 wrapper?.appendChild(xDataSvg)
 wrapper?.appendChild(yDataSvg)
+wrapper?.appendChild(frequencySlider)
 
 // calc and plot MandelbrotOutline
 calcMandelbrotOutline()
@@ -143,7 +159,9 @@ iterationsSlider.addEventListener("input", function(event){
     headline.innerHTML = `Mandelbrot-Grenzlinie bei Iterationstiefe i = ${iterationDepth}`
     mandelbrot.drawCloud()
     calcMandelbrotOutline()
+    if(isPlaying) createOscillatorFromWaveform(boundaryPoints)
     drawLines()
+
     xDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "real"))
     xDataSvg.innerHTML = ""
     xDataSvg.appendChild(xDataLine)
@@ -156,15 +174,13 @@ iterationsSlider.addEventListener("input", function(event){
 xMinSlider.addEventListener("input", function(){
     xMin = parseFloat(xMinSlider.value)
     xMax = xMin + width
-    mandelbrot.drawCloud()
-    drawLines()
+    overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
 })
 
 yMinSlider.addEventListener("input", function(){
     yMin = parseFloat(yMinSlider.value)
     yMax = yMin + height
-    mandelbrot.drawCloud()
-    drawLines()
+    overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
 })
 
 zoomSlider.addEventListener("input", function(){
@@ -179,16 +195,58 @@ zoomSlider.addEventListener("input", function(){
     yMax = yMin + height
 
     overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
-
     xMinSlider.step = (parseFloat(zoomSlider.value)/40).toString()
     yMinSlider.step = (parseFloat(zoomSlider.value)/40).toString()
+})
+
+zoomSlider.addEventListener("mouseup", () =>{
+    mandelbrot.drawCloud()
+
+    const sliderMinAttribute =zoomSlider.getAttribute("min")
+    let minValue
+    if (sliderMinAttribute){
+        minValue = parseFloat(sliderMinAttribute)
+        zoomSlider.min = `${minValue/10}`
+        zoomSlider.step = zoomSlider.min
+    }
+})
+
+overviewSvg.addEventListener("mouseleave", () => {
+    mousedown = false
+})
+
+let xOffset: number
+let yOffset: number
+let mousedown = false
+overviewSvg.addEventListener("mousedown", (event) =>{
+    mousedown = true
+    const coords = getSvgCoords(event);
+    xOffset = coords.x;
+    yOffset = coords.y;
+})
+
+overviewSvg.addEventListener("mousemove", (event) =>{
+    if(!mousedown)
+        return
+    const coords = getSvgCoords(event);
+    xMin += xOffset - coords.x
+    yMin += yOffset - coords.y
+    overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
+    
+})
+overviewSvg.addEventListener("mouseup", ()=>{
+    mousedown = false
     mandelbrot.drawCloud()
     drawLines()
 })
-
-overviewSvg.addEventListener("mouseenter", () => {
-    console.log("mouse entered");
-})
+// Helper to get SVG coordinates
+function getSvgCoords(event: MouseEvent) {
+    const point = overviewSvg.createSVGPoint();
+    point.x = event.clientX;
+    point.y = event.clientY;
+    const svgCoords = point.matrixTransform(overviewSvg.getScreenCTM()!.inverse());
+    return svgCoords;
+}
 
 function mapToCanvas(point: {real: number, imag: number}): {x: number, y: number}{
     const x = ((point.real - xMin) / (xMax - xMin)) * overviewSvgWidth; // Bereich real -2 bis 2 auf 0 bis canvasWidth skalieren

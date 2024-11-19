@@ -152,26 +152,33 @@
   }
 
   // src/library.ts
-  function normalizeWaveform(data) {
-    const values = data.map((d) => d.value);
-    const max = Math.max(...values);
-    const min = Math.min(...values);
-    return Float32Array.from(values.map((v) => 2 * (v - min) / (max - min) - 1));
-  }
+  var audioContext = null;
+  var oscillator = null;
   function createOscillatorFromWaveform(data) {
     return __async(this, null, function* () {
-      const audioContext = new AudioContext();
-      const oscillator = audioContext.createOscillator();
-      const normalizedWaveform = normalizeWaveform(data);
-      const wave = audioContext.createPeriodicWave(normalizedWaveform, new Float32Array(normalizedWaveform.length));
+      if (!audioContext) {
+        audioContext = new AudioContext();
+      }
+      oscillator = audioContext.createOscillator();
+      const realValues = new Float32Array(data.map((point) => point.real));
+      const imagValues = new Float32Array(data.map((point) => point.imag));
+      const wave = audioContext.createPeriodicWave(realValues, imagValues);
       oscillator.setPeriodicWave(wave);
       oscillator.connect(audioContext.destination);
-      oscillator.frequency.value = 440;
-      console.log("oscillator about to start");
+      oscillator.frequency.value = parseFloat(frequencySlider.value);
       oscillator.start();
-      console.log("oscillator started");
-      oscillator.stop(audioContext.currentTime + 5);
     });
+  }
+  function stopSound() {
+    if (oscillator) {
+      oscillator.stop();
+      oscillator.disconnect();
+      oscillator = null;
+    }
+    if (audioContext) {
+      audioContext.close();
+      audioContext = null;
+    }
   }
 
   // src/index.ts
@@ -181,7 +188,7 @@
   var overviewSvgHeight = 420;
   var width = 2.5;
   var height = width;
-  var iterationDepth = 5;
+  var iterationDepth = 4;
   var xMin = -2;
   var xMax = xMin + width;
   var yMin = -1.2;
@@ -248,10 +255,18 @@
   zoomSlider.step = ".1";
   zoomSlider.value = `${width}`;
   var oscXValues = document.createElement("button");
-  oscXValues.innerHTML = "oscillate x values";
+  oscXValues.innerHTML = "oscillate boundary points";
+  var isPlaying = false;
   oscXValues.addEventListener("click", () => {
-    console.log("trying to create audio context");
-    createOscillatorFromWaveform(extrapolate(boundaryPoints, "imag"));
+    if (!isPlaying) {
+      createOscillatorFromWaveform(boundaryPoints);
+      oscXValues.textContent = "stop sound";
+    }
+    if (isPlaying) {
+      stopSound();
+      oscXValues.textContent = "oscillate boundary points";
+    }
+    isPlaying = !isPlaying;
   });
   var frequencySliderLabel = document.createElement("label");
   frequencySliderLabel.setAttribute("for", "frequencySlider");
@@ -260,9 +275,12 @@
   frequencySlider.id = "frequencySlider";
   frequencySlider.type = "range";
   frequencySlider.min = "1";
-  frequencySlider.max = "10";
+  frequencySlider.max = "440";
+  frequencySlider.value = "1";
   frequencySlider.addEventListener("input", (event) => {
     const frequency = event.target.valueAsNumber;
+    if (oscillator)
+      oscillator.frequency.value = frequency;
   });
   wrapper == null ? void 0 : wrapper.appendChild(headline);
   wrapper == null ? void 0 : wrapper.appendChild(oscXValues);
@@ -277,6 +295,7 @@
   wrapper == null ? void 0 : wrapper.appendChild(overviewSvg);
   wrapper == null ? void 0 : wrapper.appendChild(xDataSvg);
   wrapper == null ? void 0 : wrapper.appendChild(yDataSvg);
+  wrapper == null ? void 0 : wrapper.appendChild(frequencySlider);
   calcMandelbrotOutline();
   drawLines();
   var xDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "real"));
@@ -290,6 +309,7 @@
     headline.innerHTML = `Mandelbrot-Grenzlinie bei Iterationstiefe i = ${iterationDepth}`;
     mandelbrot2.drawCloud();
     calcMandelbrotOutline();
+    if (isPlaying) createOscillatorFromWaveform(boundaryPoints);
     drawLines();
     xDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "real"));
     xDataSvg.innerHTML = "";
@@ -301,14 +321,12 @@
   xMinSlider.addEventListener("input", function() {
     xMin = parseFloat(xMinSlider.value);
     xMax = xMin + width;
-    mandelbrot2.drawCloud();
-    drawLines();
+    overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   });
   yMinSlider.addEventListener("input", function() {
     yMin = parseFloat(yMinSlider.value);
     yMax = yMin + height;
-    mandelbrot2.drawCloud();
-    drawLines();
+    overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   });
   zoomSlider.addEventListener("input", function() {
     const oldWidth = width;
@@ -322,12 +340,49 @@
     overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
     xMinSlider.step = (parseFloat(zoomSlider.value) / 40).toString();
     yMinSlider.step = (parseFloat(zoomSlider.value) / 40).toString();
+  });
+  zoomSlider.addEventListener("mouseup", () => {
+    mandelbrot2.drawCloud();
+    const sliderMinAttribute = zoomSlider.getAttribute("min");
+    let minValue;
+    if (sliderMinAttribute) {
+      minValue = parseFloat(sliderMinAttribute);
+      zoomSlider.min = `${minValue / 10}`;
+      zoomSlider.step = zoomSlider.min;
+    }
+  });
+  overviewSvg.addEventListener("mouseleave", () => {
+    mousedown = false;
+  });
+  var xOffset;
+  var yOffset;
+  var mousedown = false;
+  overviewSvg.addEventListener("mousedown", (event) => {
+    mousedown = true;
+    const coords = getSvgCoords(event);
+    xOffset = coords.x;
+    yOffset = coords.y;
+  });
+  overviewSvg.addEventListener("mousemove", (event) => {
+    if (!mousedown)
+      return;
+    const coords = getSvgCoords(event);
+    xMin += xOffset - coords.x;
+    yMin += yOffset - coords.y;
+    overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+  });
+  overviewSvg.addEventListener("mouseup", () => {
+    mousedown = false;
     mandelbrot2.drawCloud();
     drawLines();
   });
-  overviewSvg.addEventListener("mouseenter", () => {
-    console.log("mouse entered");
-  });
+  function getSvgCoords(event) {
+    const point = overviewSvg.createSVGPoint();
+    point.x = event.clientX;
+    point.y = event.clientY;
+    const svgCoords = point.matrixTransform(overviewSvg.getScreenCTM().inverse());
+    return svgCoords;
+  }
   function drawLines() {
     if (boundaryPoints.length < 2) {
       console.warn("Not enough points to draw lines");
