@@ -17,13 +17,20 @@ export let xMin = -2, xMax = xMin + width
 export let yMin = -1.2, yMax = yMin + height
 
 const headline: HTMLHeadElement = document.createElement("h1")
-headline.innerHTML = `Mandelbrot-Grenzlinie bei Iterationstiefe i = ${iterationDepth}`
+headline.innerHTML = `View and oszillate the mandelbrot at depth: ${iterationDepth}`
 
 export const overviewSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
 overviewSvg.setAttribute("id", "mandelbrotSvg")
 overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
 overviewSvg.setAttribute("width", `${overviewSvgWidth}px`)
 overviewSvg.setAttribute("height", `${overviewSvgHeight}px`)
+
+const viewControlsContainer = document.createElement("div")
+viewControlsContainer.id = "viewControlsContainer"
+const viewElementsContainer = document.createElement("div")
+viewElementsContainer.id = "viewElementsContainer"
+const soundControlsContainer = document.createElement("div")
+soundControlsContainer.id = "soundControlsContainer"
 
 const xDataSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
 const xDataSvgWidth = 200
@@ -91,17 +98,17 @@ zoomSlider.value = `${width}`
 
 
 
-const oscXValues = document.createElement("button")
-oscXValues.innerHTML = "oscillate boundary points"
+const oscillateButton = document.createElement("button")
+oscillateButton.innerHTML = "oscillate boundary points"
 let isPlaying = false
-oscXValues.addEventListener("click", ()=>{
+oscillateButton.addEventListener("click", ()=>{
     if(!isPlaying){
         createOscillatorFromWaveform(boundaryPoints)
-        oscXValues.textContent = "stop sound"
+        oscillateButton.textContent = "stop sound"
     }
     if(isPlaying){
         stopSound()
-        oscXValues.textContent = "oscillate boundary points"
+        oscillateButton.textContent = "oscillate boundary points"
     }
     isPlaying = !isPlaying
 
@@ -125,7 +132,7 @@ frequencySlider.addEventListener("input", (event) => {
 
 
 wrapper?.appendChild(headline)
-wrapper?.appendChild(oscXValues)
+wrapper?.appendChild(oscillateButton)
 wrapper?.appendChild(iterationsSliderLabel)
 wrapper?.appendChild(iterationsSlider)
 wrapper?.appendChild(xMinSliderLabel)
@@ -137,6 +144,7 @@ wrapper?.appendChild(zoomSlider)
 wrapper?.appendChild(overviewSvg)
 wrapper?.appendChild(xDataSvg)
 wrapper?.appendChild(yDataSvg)
+wrapper?.appendChild(frequencySliderLabel)
 wrapper?.appendChild(frequencySlider)
 
 // calc and plot MandelbrotOutline

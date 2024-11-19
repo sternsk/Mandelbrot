@@ -194,12 +194,18 @@
   var yMin = -1.2;
   var yMax = yMin + height;
   var headline = document.createElement("h1");
-  headline.innerHTML = `Mandelbrot-Grenzlinie bei Iterationstiefe i = ${iterationDepth}`;
+  headline.innerHTML = `View and oszillate the mandelbrot at depth: ${iterationDepth}`;
   var overviewSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   overviewSvg.setAttribute("id", "mandelbrotSvg");
   overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   overviewSvg.setAttribute("width", `${overviewSvgWidth}px`);
   overviewSvg.setAttribute("height", `${overviewSvgHeight}px`);
+  var viewControlsContainer = document.createElement("div");
+  viewControlsContainer.id = "viewControlsContainer";
+  var viewElementsContainer = document.createElement("div");
+  viewElementsContainer.id = "viewElementsContainer";
+  var soundControlsContainer = document.createElement("div");
+  soundControlsContainer.id = "soundControlsContainer";
   var xDataSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   var xDataSvgWidth = 200;
   var xDataSvgHeight = 100;
@@ -254,17 +260,17 @@
   zoomSlider.max = "4";
   zoomSlider.step = ".1";
   zoomSlider.value = `${width}`;
-  var oscXValues = document.createElement("button");
-  oscXValues.innerHTML = "oscillate boundary points";
+  var oscillateButton = document.createElement("button");
+  oscillateButton.innerHTML = "oscillate boundary points";
   var isPlaying = false;
-  oscXValues.addEventListener("click", () => {
+  oscillateButton.addEventListener("click", () => {
     if (!isPlaying) {
       createOscillatorFromWaveform(boundaryPoints);
-      oscXValues.textContent = "stop sound";
+      oscillateButton.textContent = "stop sound";
     }
     if (isPlaying) {
       stopSound();
-      oscXValues.textContent = "oscillate boundary points";
+      oscillateButton.textContent = "oscillate boundary points";
     }
     isPlaying = !isPlaying;
   });
@@ -283,7 +289,7 @@
       oscillator.frequency.value = frequency;
   });
   wrapper == null ? void 0 : wrapper.appendChild(headline);
-  wrapper == null ? void 0 : wrapper.appendChild(oscXValues);
+  wrapper == null ? void 0 : wrapper.appendChild(oscillateButton);
   wrapper == null ? void 0 : wrapper.appendChild(iterationsSliderLabel);
   wrapper == null ? void 0 : wrapper.appendChild(iterationsSlider);
   wrapper == null ? void 0 : wrapper.appendChild(xMinSliderLabel);
@@ -295,6 +301,7 @@
   wrapper == null ? void 0 : wrapper.appendChild(overviewSvg);
   wrapper == null ? void 0 : wrapper.appendChild(xDataSvg);
   wrapper == null ? void 0 : wrapper.appendChild(yDataSvg);
+  wrapper == null ? void 0 : wrapper.appendChild(frequencySliderLabel);
   wrapper == null ? void 0 : wrapper.appendChild(frequencySlider);
   calcMandelbrotOutline();
   drawLines();
