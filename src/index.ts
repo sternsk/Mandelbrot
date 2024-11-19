@@ -1,5 +1,5 @@
 
-console.log("ver 2244")
+console.log("ver 1125")
 
 import { boundaryPoints, calcMandelbrotOutline } from "./calcMandelbrotOutline.js";
 import { Mandelbrot } from "./calcnPlot.js";
@@ -8,6 +8,7 @@ import { createOscillatorFromWaveform, stopSound, oscillator} from "./library.js
 
 
 const wrapper = document.getElementById("wrapper")
+
 export const overviewSvgWidth =480
 export const overviewSvgHeight = 420
 let width = 2.5
@@ -27,14 +28,23 @@ overviewSvg.setAttribute("height", `${overviewSvgHeight}px`)
 
 const viewControlsContainer = document.createElement("div")
 viewControlsContainer.id = "viewControlsContainer"
+viewControlsContainer.style.border = "1px solid black"
+viewControlsContainer.style.padding = "10px"
+
 const viewElementsContainer = document.createElement("div")
 viewElementsContainer.id = "viewElementsContainer"
+viewElementsContainer.style.border = "1px solid black"
+viewElementsContainer.style.padding = "10px"
+
 const soundControlsContainer = document.createElement("div")
 soundControlsContainer.id = "soundControlsContainer"
+soundControlsContainer.style.border = "1px solid black"
+soundControlsContainer.style.padding = "10px"
 
 const xDataSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
 const xDataSvgWidth = 200
 const xDataSvgHeight = 100
+xDataSvg.style.marginLeft = "5px"
 xDataSvg.setAttribute("id", "xDataSvg")
 xDataSvg.setAttribute("width", `${xDataSvgWidth}`)
 xDataSvg.setAttribute("height", `${xDataSvgHeight}`)
@@ -45,9 +55,10 @@ xDataSvg.style.top = "400px"
 const yDataSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
 const yDataSvgWidth = 200
 const yDataSvgHeight = 100
-xDataSvg.setAttribute("id", "xDataSvg")
-xDataSvg.setAttribute("width", `${yDataSvgWidth}`)
-xDataSvg.setAttribute("height", `${yDataSvgHeight}`)
+yDataSvg.style.marginLeft = "5px"
+yDataSvg.setAttribute("id", "yDataSvg")
+yDataSvg.setAttribute("width", `${yDataSvgWidth}`)
+yDataSvg.setAttribute("height", `${yDataSvgHeight}`)
 
 const outlinePath = document.createElementNS("http://www.w3.org/2000/svg", "path")
 overviewSvg.appendChild(outlinePath)
@@ -100,6 +111,7 @@ zoomSlider.value = `${width}`
 
 const oscillateButton = document.createElement("button")
 oscillateButton.innerHTML = "oscillate boundary points"
+oscillateButton.style.width = "200px"
 let isPlaying = false
 oscillateButton.addEventListener("click", ()=>{
     if(!isPlaying){
@@ -116,7 +128,7 @@ oscillateButton.addEventListener("click", ()=>{
 
 const frequencySliderLabel = document.createElement("label")
 frequencySliderLabel.setAttribute("for", "frequencySlider")
-frequencySliderLabel.innerHTML = "frequency: "
+frequencySliderLabel.innerHTML = " frequency: "
 export const frequencySlider = document.createElement("input")
 frequencySlider.id = "frequencySlider"
 frequencySlider.type = "range"
@@ -131,21 +143,23 @@ frequencySlider.addEventListener("input", (event) => {
   });
 
 
-wrapper?.appendChild(headline)
-wrapper?.appendChild(oscillateButton)
-wrapper?.appendChild(iterationsSliderLabel)
-wrapper?.appendChild(iterationsSlider)
-wrapper?.appendChild(xMinSliderLabel)
-wrapper?.appendChild(xMinSlider)
-wrapper?.appendChild(yMinSliderLabel)
-wrapper?.appendChild(yMinSlider)
-wrapper?.appendChild(zoomSliderLabel)
-wrapper?.appendChild(zoomSlider)
-wrapper?.appendChild(overviewSvg)
-wrapper?.appendChild(xDataSvg)
-wrapper?.appendChild(yDataSvg)
-wrapper?.appendChild(frequencySliderLabel)
-wrapper?.appendChild(frequencySlider)
+soundControlsContainer.appendChild(oscillateButton)
+soundControlsContainer.appendChild(frequencySliderLabel)
+soundControlsContainer.appendChild(frequencySlider)
+
+viewControlsContainer.appendChild(iterationsSliderLabel)
+viewControlsContainer.appendChild(iterationsSlider)
+viewControlsContainer.appendChild(iterationsSlider)
+viewControlsContainer.appendChild(xMinSliderLabel)
+viewControlsContainer.appendChild(xMinSlider)
+viewControlsContainer.appendChild(yMinSliderLabel)
+viewControlsContainer.appendChild(yMinSlider)
+viewControlsContainer.appendChild(zoomSliderLabel)
+viewControlsContainer.appendChild(zoomSlider)
+
+viewElementsContainer.appendChild(overviewSvg)
+viewElementsContainer.appendChild(xDataSvg)
+viewElementsContainer.appendChild(yDataSvg)
 
 // calc and plot MandelbrotOutline
 calcMandelbrotOutline()
@@ -157,6 +171,10 @@ let yDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "imag"))
 xDataSvg.appendChild(xDataLine)
 yDataSvg.appendChild(yDataLine)
 
+wrapper?.appendChild(headline)
+wrapper?.appendChild(soundControlsContainer)
+wrapper?.appendChild(viewControlsContainer)
+wrapper?.appendChild(viewElementsContainer)
 
 // Draw a Mandelbrot cloud for reference
 const mandelbrot = new Mandelbrot();

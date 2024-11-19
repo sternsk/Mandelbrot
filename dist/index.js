@@ -182,7 +182,7 @@
   }
 
   // src/index.ts
-  console.log("ver 2244");
+  console.log("ver 1125");
   var wrapper = document.getElementById("wrapper");
   var overviewSvgWidth = 480;
   var overviewSvgHeight = 420;
@@ -202,22 +202,30 @@
   overviewSvg.setAttribute("height", `${overviewSvgHeight}px`);
   var viewControlsContainer = document.createElement("div");
   viewControlsContainer.id = "viewControlsContainer";
+  viewControlsContainer.style.border = "1px solid black";
+  viewControlsContainer.style.padding = "10px";
   var viewElementsContainer = document.createElement("div");
   viewElementsContainer.id = "viewElementsContainer";
+  viewElementsContainer.style.border = "1px solid black";
+  viewElementsContainer.style.padding = "10px";
   var soundControlsContainer = document.createElement("div");
   soundControlsContainer.id = "soundControlsContainer";
+  soundControlsContainer.style.border = "1px solid black";
+  soundControlsContainer.style.padding = "10px";
   var xDataSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   var xDataSvgWidth = 200;
   var xDataSvgHeight = 100;
+  xDataSvg.style.marginLeft = "5px";
   xDataSvg.setAttribute("id", "xDataSvg");
   xDataSvg.setAttribute("width", `${xDataSvgWidth}`);
   xDataSvg.setAttribute("height", `${xDataSvgHeight}`);
   var yDataSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   var yDataSvgWidth = 200;
   var yDataSvgHeight = 100;
-  xDataSvg.setAttribute("id", "xDataSvg");
-  xDataSvg.setAttribute("width", `${yDataSvgWidth}`);
-  xDataSvg.setAttribute("height", `${yDataSvgHeight}`);
+  yDataSvg.style.marginLeft = "5px";
+  yDataSvg.setAttribute("id", "yDataSvg");
+  yDataSvg.setAttribute("width", `${yDataSvgWidth}`);
+  yDataSvg.setAttribute("height", `${yDataSvgHeight}`);
   var outlinePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   overviewSvg.appendChild(outlinePath);
   var iterationsSliderLabel = document.createElement("label");
@@ -262,6 +270,7 @@
   zoomSlider.value = `${width}`;
   var oscillateButton = document.createElement("button");
   oscillateButton.innerHTML = "oscillate boundary points";
+  oscillateButton.style.width = "200px";
   var isPlaying = false;
   oscillateButton.addEventListener("click", () => {
     if (!isPlaying) {
@@ -276,7 +285,7 @@
   });
   var frequencySliderLabel = document.createElement("label");
   frequencySliderLabel.setAttribute("for", "frequencySlider");
-  frequencySliderLabel.innerHTML = "frequency: ";
+  frequencySliderLabel.innerHTML = " frequency: ";
   var frequencySlider = document.createElement("input");
   frequencySlider.id = "frequencySlider";
   frequencySlider.type = "range";
@@ -288,27 +297,31 @@
     if (oscillator)
       oscillator.frequency.value = frequency;
   });
-  wrapper == null ? void 0 : wrapper.appendChild(headline);
-  wrapper == null ? void 0 : wrapper.appendChild(oscillateButton);
-  wrapper == null ? void 0 : wrapper.appendChild(iterationsSliderLabel);
-  wrapper == null ? void 0 : wrapper.appendChild(iterationsSlider);
-  wrapper == null ? void 0 : wrapper.appendChild(xMinSliderLabel);
-  wrapper == null ? void 0 : wrapper.appendChild(xMinSlider);
-  wrapper == null ? void 0 : wrapper.appendChild(yMinSliderLabel);
-  wrapper == null ? void 0 : wrapper.appendChild(yMinSlider);
-  wrapper == null ? void 0 : wrapper.appendChild(zoomSliderLabel);
-  wrapper == null ? void 0 : wrapper.appendChild(zoomSlider);
-  wrapper == null ? void 0 : wrapper.appendChild(overviewSvg);
-  wrapper == null ? void 0 : wrapper.appendChild(xDataSvg);
-  wrapper == null ? void 0 : wrapper.appendChild(yDataSvg);
-  wrapper == null ? void 0 : wrapper.appendChild(frequencySliderLabel);
-  wrapper == null ? void 0 : wrapper.appendChild(frequencySlider);
+  soundControlsContainer.appendChild(oscillateButton);
+  soundControlsContainer.appendChild(frequencySliderLabel);
+  soundControlsContainer.appendChild(frequencySlider);
+  viewControlsContainer.appendChild(iterationsSliderLabel);
+  viewControlsContainer.appendChild(iterationsSlider);
+  viewControlsContainer.appendChild(iterationsSlider);
+  viewControlsContainer.appendChild(xMinSliderLabel);
+  viewControlsContainer.appendChild(xMinSlider);
+  viewControlsContainer.appendChild(yMinSliderLabel);
+  viewControlsContainer.appendChild(yMinSlider);
+  viewControlsContainer.appendChild(zoomSliderLabel);
+  viewControlsContainer.appendChild(zoomSlider);
+  viewElementsContainer.appendChild(overviewSvg);
+  viewElementsContainer.appendChild(xDataSvg);
+  viewElementsContainer.appendChild(yDataSvg);
   calcMandelbrotOutline();
   drawLines();
   var xDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "real"));
   var yDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "imag"));
   xDataSvg.appendChild(xDataLine);
   yDataSvg.appendChild(yDataLine);
+  wrapper == null ? void 0 : wrapper.appendChild(headline);
+  wrapper == null ? void 0 : wrapper.appendChild(soundControlsContainer);
+  wrapper == null ? void 0 : wrapper.appendChild(viewControlsContainer);
+  wrapper == null ? void 0 : wrapper.appendChild(viewElementsContainer);
   var mandelbrot2 = new Mandelbrot();
   mandelbrot2.drawCloud();
   iterationsSlider.addEventListener("input", function(event) {
