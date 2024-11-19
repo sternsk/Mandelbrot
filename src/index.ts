@@ -1,5 +1,5 @@
 
-console.log("ver 1125")
+console.log("ver 1234")
 
 import { boundaryPoints, calcMandelbrotOutline } from "./calcMandelbrotOutline.js";
 import { Mandelbrot } from "./calcnPlot.js";
@@ -178,7 +178,11 @@ wrapper?.appendChild(viewElementsContainer)
 
 // Draw a Mandelbrot cloud for reference
 const mandelbrot = new Mandelbrot();
-mandelbrot.drawCloud();
+window.onload = () =>{
+    
+    mandelbrot.drawCloud();
+    
+}
 
 iterationsSlider.addEventListener("input", function(event){
     iterationDepth = parseInt(iterationsSlider.value)
@@ -223,17 +227,17 @@ zoomSlider.addEventListener("input", function(){
     overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
     xMinSlider.step = (parseFloat(zoomSlider.value)/40).toString()
     yMinSlider.step = (parseFloat(zoomSlider.value)/40).toString()
+    zoomSlider.step = zoomSlider.min
 })
 
 zoomSlider.addEventListener("mouseup", () =>{
     mandelbrot.drawCloud()
-
     const sliderMinAttribute =zoomSlider.getAttribute("min")
     let minValue
     if (sliderMinAttribute){
         minValue = parseFloat(sliderMinAttribute)
         zoomSlider.min = `${minValue/10}`
-        zoomSlider.step = zoomSlider.min
+        
     }
 })
 
@@ -265,6 +269,23 @@ overviewSvg.addEventListener("mouseup", ()=>{
     mandelbrot.drawCloud()
     drawLines()
 })
+
+overviewSvg.addEventListener("wheel", (event) =>{
+    
+    const oldWidth = width
+    const oldHeight = height
+    width += width * 10 / event.deltaY 
+    height = width
+    
+    xMin -= (width - oldWidth )/2
+    xMax = xMin + width
+    yMin -=(height - oldHeight)/2
+    yMax = yMin + height
+
+    overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
+    
+})
+
 // Helper to get SVG coordinates
 function getSvgCoords(event: MouseEvent) {
     const point = overviewSvg.createSVGPoint();

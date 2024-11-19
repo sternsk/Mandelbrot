@@ -182,7 +182,7 @@
   }
 
   // src/index.ts
-  console.log("ver 1125");
+  console.log("ver 1234");
   var wrapper = document.getElementById("wrapper");
   var overviewSvgWidth = 480;
   var overviewSvgHeight = 420;
@@ -323,7 +323,9 @@
   wrapper == null ? void 0 : wrapper.appendChild(viewControlsContainer);
   wrapper == null ? void 0 : wrapper.appendChild(viewElementsContainer);
   var mandelbrot2 = new Mandelbrot();
-  mandelbrot2.drawCloud();
+  window.onload = () => {
+    mandelbrot2.drawCloud();
+  };
   iterationsSlider.addEventListener("input", function(event) {
     iterationDepth = parseInt(iterationsSlider.value);
     headline.innerHTML = `Mandelbrot-Grenzlinie bei Iterationstiefe i = ${iterationDepth}`;
@@ -360,6 +362,7 @@
     overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
     xMinSlider.step = (parseFloat(zoomSlider.value) / 40).toString();
     yMinSlider.step = (parseFloat(zoomSlider.value) / 40).toString();
+    zoomSlider.step = zoomSlider.min;
   });
   zoomSlider.addEventListener("mouseup", () => {
     mandelbrot2.drawCloud();
@@ -368,7 +371,6 @@
     if (sliderMinAttribute) {
       minValue = parseFloat(sliderMinAttribute);
       zoomSlider.min = `${minValue / 10}`;
-      zoomSlider.step = zoomSlider.min;
     }
   });
   overviewSvg.addEventListener("mouseleave", () => {
@@ -395,6 +397,17 @@
     mousedown = false;
     mandelbrot2.drawCloud();
     drawLines();
+  });
+  overviewSvg.addEventListener("wheel", (event) => {
+    const oldWidth = width;
+    const oldHeight = height;
+    width += width * 10 / event.deltaY;
+    height = width;
+    xMin -= (width - oldWidth) / 2;
+    xMax = xMin + width;
+    yMin -= (height - oldHeight) / 2;
+    yMax = yMin + height;
+    overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   });
   function getSvgCoords(event) {
     const point = overviewSvg.createSVGPoint();
