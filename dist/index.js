@@ -26,34 +26,84 @@
 
   // src/calcMandelbrotOutline.ts
   var boundaryPoints = [];
+  var allSteps = [];
+  var done = false;
+  var actualSample = document.createElementNS("http://www.w3.org/2000/svg", "line");
   function calcMandelbrotOutline() {
+    done = false;
+    allSteps = [];
+    spectraSvg.innerHTML = "";
+    const begin = Date.now();
+    actualSample.setAttribute("vector-effect", "non-scaling-stroke");
+    actualSample.setAttribute("stroke-width", "1px");
+    actualSample.setAttribute("id", "actualSample");
+    spectraSvg.appendChild(actualSample);
+    let duration;
     boundaryPoints = [];
     const startPoint = { real: -2, imag: 0 };
     let directionVector = { real: -1, imag: 0 };
-    const samplingRate = 1 / Math.pow(iterationDepth, 3);
-    const sampleRotation = Math.PI / 8;
-    let actualPoint = add(startPoint, scale(directionVector, samplingRate / 2));
-    console.log("samplingRate: " + samplingRate + " at iterationDepth: " + iterationDepth);
+    const sampleLength = 1 / Math.pow(iterationDepth, 3);
+    const sampleAngle = Math.PI / 8;
+    let actualPoint = add(startPoint, scale(directionVector, sampleLength / 2));
+    console.log("samplingRate: " + sampleLength + " at iterationDepth: " + iterationDepth);
     boundaryPoints.push(actualPoint);
     directionVector = { real: 0, imag: 1 };
     while (actualPoint.imag >= 0) {
-      if (mandelbrot(add(actualPoint, scale(directionVector, samplingRate)))) {
-        while (mandelbrot(add(actualPoint, scale(directionVector, samplingRate)))) {
-          directionVector = rotate(directionVector, sampleRotation);
+      if (mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))) {
+        while (mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))) {
+          const endPoint = add(actualPoint, scale(directionVector, sampleLength));
+          allSteps.push({ startPoint: actualPoint, endPoint, color: "brown" });
+          directionVector = rotate(directionVector, sampleAngle);
         }
-        actualPoint = add(actualPoint, scale(directionVector, samplingRate));
+        const endpoint = add(actualPoint, scale(directionVector, sampleLength));
+        allSteps.push({ startPoint: actualPoint, endPoint: endpoint, color: "red" });
+        actualPoint = endpoint;
         boundaryPoints.push(actualPoint);
       }
-      if (!mandelbrot(add(actualPoint, scale(directionVector, samplingRate)))) {
-        while (!mandelbrot(add(actualPoint, scale(directionVector, samplingRate)))) {
-          directionVector = rotate(directionVector, -sampleRotation);
+      if (!mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))) {
+        while (!mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))) {
+          const endPoint = add(actualPoint, scale(directionVector, sampleLength));
+          allSteps.push({ startPoint: actualPoint, endPoint, color: "blue" });
+          directionVector = rotate(directionVector, -sampleAngle);
         }
-        directionVector = rotate(directionVector, sampleRotation);
-        actualPoint = add(actualPoint, scale(directionVector, samplingRate));
+        directionVector = rotate(directionVector, sampleAngle);
+        const endpoint = add(actualPoint, scale(directionVector, sampleLength));
+        allSteps.push({ startPoint: actualPoint, endPoint: endpoint, color: "red" });
+        actualPoint = endpoint;
         boundaryPoints.push(actualPoint);
       }
+      done = true;
+      animateOutline();
     }
     console.log("boundaryPoints.length: " + boundaryPoints.length);
+    duration = Date.now() - begin;
+    console.log(`sampling mb-outline in ${duration} ms`);
+  }
+  function animateOutline() {
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i >= allSteps.length || !done) {
+        clearInterval(interval);
+        console.log("intervall cleared");
+        return;
+      }
+      const startPoint = allSteps[i].startPoint;
+      const endPoint = allSteps[i].endPoint;
+      const color = allSteps[i].color;
+      actualSample.setAttribute("x1", `${startPoint.real}`);
+      actualSample.setAttribute("y1", `${startPoint.imag}`);
+      actualSample.setAttribute("x2", `${endPoint.real}`);
+      actualSample.setAttribute("y2", `${endPoint.imag}`);
+      actualSample.setAttribute("stroke", `${color}`);
+      spectraSvg.setAttribute("viewBox", `${startPoint.real - 0.05} 
+                                            ${startPoint.imag - 0.05} 
+                                            ${endPoint.real - startPoint.real + 0.1}
+                                            ${endPoint.imag - startPoint.imag + 0.1}`);
+      const calculatedSample = actualSample.cloneNode(false);
+      calculatedSample.setAttribute("id", "calculatedSample");
+      spectraSvg.appendChild(calculatedSample);
+      i++;
+    }, 100);
   }
   function rotate(vector, rotationAngle) {
     const originLength = Math.sqrt(Math.pow(vector.real, 2) + Math.pow(vector.imag, 2));
@@ -182,7 +232,7 @@
   }
 
   // src/index.ts
-  console.log("ver 1234");
+  console.log("ver 2104");
   var wrapper = document.getElementById("wrapper");
   var overviewSvgWidth = 480;
   var overviewSvgHeight = 420;
@@ -200,6 +250,16 @@
   overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   overviewSvg.setAttribute("width", `${overviewSvgWidth}px`);
   overviewSvg.setAttribute("height", `${overviewSvgHeight}px`);
+  var spectraSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  spectraSvg.setAttribute("id", "spectraSvg");
+  spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+  spectraSvg.setAttribute("width", `${overviewSvgWidth}px`);
+  spectraSvg.setAttribute("height", `${overviewSvgHeight}px`);
+  window.addEventListener("resize", () => {
+    if (document.documentElement.clientWidth < 1004) {
+      spectraSvg.style.display = "none";
+    }
+  });
   var viewControlsContainer = document.createElement("div");
   viewControlsContainer.id = "viewControlsContainer";
   viewControlsContainer.style.border = "1px solid black";
@@ -310,6 +370,7 @@
   viewControlsContainer.appendChild(zoomSliderLabel);
   viewControlsContainer.appendChild(zoomSlider);
   viewElementsContainer.appendChild(overviewSvg);
+  viewElementsContainer.appendChild(spectraSvg);
   viewElementsContainer.appendChild(xDataSvg);
   viewElementsContainer.appendChild(yDataSvg);
   calcMandelbrotOutline();

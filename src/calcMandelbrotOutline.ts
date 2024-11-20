@@ -1,7 +1,33 @@
-import { iterationDepth } from "src"
+import { iterationDepth, spectraSvg } from "src"
 
 export let boundaryPoints: {real: number, imag:number}[] = []
+
+let allSteps: {startPoint: {
+                    real: number, 
+                    imag: number}, 
+                endPoint: {
+                    real: number, 
+                    imag: number}, 
+                color: string}[]= 
+                []
+
+let done = false
+const actualSample = document.createElementNS("http://www.w3.org/2000/svg", "line")
+
 export function calcMandelbrotOutline(){
+    //initialize spectraSvg
+    done = false
+    allSteps = []
+    spectraSvg.innerHTML = ""
+
+    const begin = Date.now()
+    
+    actualSample.setAttribute("vector-effect", "non-scaling-stroke")
+    actualSample.setAttribute("stroke-width", "1px")    
+    actualSample.setAttribute("id", "actualSample")
+    spectraSvg.appendChild(actualSample)
+
+    let duration: number
 
     boundaryPoints=[]
     
@@ -10,49 +36,133 @@ export function calcMandelbrotOutline(){
     
     //step slightly out of the mandelbrotset at samplingRate/2 step
     let directionVector = {real: -1, imag: 0}
-    const samplingRate = 1/Math.pow(iterationDepth,3)
-    const sampleRotation = Math.PI/8
-    let actualPoint = add(startPoint, scale(directionVector, samplingRate/2))
+    const sampleLength = 1/Math.pow(iterationDepth,3)
+    const sampleAngle = Math.PI/8
+    let actualPoint = add(startPoint, scale(directionVector, sampleLength/2))
     
-    console.log("samplingRate: "+samplingRate+" at iterationDepth: "+iterationDepth)
+    console.log("samplingRate: "+sampleLength+" at iterationDepth: "+iterationDepth)
     
     boundaryPoints.push(actualPoint)
     
     // then move upwards from here on
     directionVector = {real: 0, imag: 1}
 
-    //move around the whole mandelbroz
+    //move around for a reasonable amount
     while (actualPoint.imag >= 0){
     //for (let i = 0; i  < 1500; i++) {
        
         // test if actualPoint + directionVector is inside the Mandelbrot
         // cover the case, where we pierce into the set
-        if(mandelbrot(add(actualPoint, scale(directionVector, samplingRate)))){
-                while (mandelbrot(add(actualPoint, scale(directionVector, samplingRate)))){
-                    // adjust by rotating the directionvector away from the set
+        if(mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))){
+                /*
+                setTimeout in Schleifen:
+
+setTimeout führt den angegebenen Callback asynchron aus. Dadurch wird der Inhalt von setTimeout nicht blockierend ausgeführt, sondern in die Warteschlange (Event Loop) gestellt. Das kann zu unerwartetem Verhalten führen, insbesondere wenn die Schleife schnell durchläuft.
+Da die Schleife nicht wartet, bis der setTimeout-Callback ausgeführt wurde, können Werte von Variablen wie directionVector oder actualPoint zwischenzeitlich weiter verändert werden, was zu falschen Ergebnissen führen kann.
+         */
+            while (mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))){
+                
+                const endPoint = add(actualPoint, scale(directionVector, sampleLength))
+                allSteps.push({startPoint: actualPoint, endPoint, color: "brown"})
+                
+                // adjust by rotating the directionvector away from the set
+                directionVector = rotate(directionVector, sampleAngle)
+                
+                
+                /*
+                actualSample.setAttribute("x1", `${actualPoint.real}`)
+                actualSample.setAttribute("y1", `${actualPoint.imag}`)
+                actualSample.setAttribute("x2", `${endPoint.real}`)
+                actualSample.setAttribute("y2", `${endPoint.imag}`)
+                actualSample.setAttribute("stroke", "brown")
+            */
+            
                     
-                    directionVector = rotate(directionVector, sampleRotation)
-                }
-            actualPoint = add(actualPoint, scale(directionVector, samplingRate))
+            }
+            const endpoint = add(actualPoint, scale(directionVector, sampleLength))
+            allSteps.push({startPoint: actualPoint, endPoint: endpoint, color: "red"})
+            actualPoint = endpoint
+
+
+            /*
+            actualSample.setAttribute("x1", `${actualPoint.real}`)
+            actualSample.setAttribute("y1", `${actualPoint.imag}`)
+            actualSample.setAttribute("x2", `${add(actualPoint, scale(directionVector, sampleLength)).real}`)
+            actualSample.setAttribute("y2", `${add(actualPoint, scale(directionVector, sampleLength)).imag}`)
+            actualSample.setAttribute("stroke", "black")
+            const calculatedSample = actualSample.cloneNode(false) as SVGLineElement
+            calculatedSample.setAttribute("id", "calculatedSample")
+            spectraSvg.appendChild(calculatedSample)
+*/
+            
             boundaryPoints.push(actualPoint)
             
         }
     
         // cover the case, where we do not pierce into the set
-        if(!mandelbrot(add(actualPoint, scale(directionVector, samplingRate)))){
-            while(!mandelbrot(add(actualPoint, scale(directionVector, samplingRate))))    {
+        if(!mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))){
+            while(!mandelbrot(add(actualPoint, scale(directionVector, sampleLength))))    {
+                const endPoint = add(actualPoint, scale(directionVector, sampleLength))
+                allSteps.push({startPoint: actualPoint, endPoint, color: "blue"})
+                
                 //rotate the other way around
-                directionVector = rotate(directionVector, -sampleRotation)
+                directionVector = rotate(directionVector, -sampleAngle)
             }
             // then rotate back to get out of the set again
-            directionVector = rotate(directionVector, sampleRotation)
-            actualPoint = add(actualPoint, scale(directionVector, samplingRate))
+            directionVector = rotate(directionVector, sampleAngle)
+
+            const endpoint = add(actualPoint, scale(directionVector, sampleLength))
+            allSteps.push({startPoint: actualPoint, endPoint: endpoint, color: "red"})
+
+            actualPoint = endpoint
             boundaryPoints.push(actualPoint)
             
         }
+    done = true
+    animateOutline()
     }
+
+    
+        
     console.log("boundaryPoints.length: "+boundaryPoints.length)
-   
+    duration = Date.now() - begin
+    console.log(`sampling mb-outline in ${duration} ms`)
+}
+
+function animateOutline(){
+    let i = 0
+    
+    const interval = setInterval(() =>{
+
+        if (i >= allSteps.length || !done) {
+            clearInterval(interval); // Intervall beenden
+            console.log("intervall cleared")
+            return;
+        }
+        
+        const startPoint = allSteps[i].startPoint
+        const endPoint = allSteps[i].endPoint
+        const color = allSteps[i].color
+        
+        actualSample.setAttribute("x1", `${startPoint.real}`)
+        actualSample.setAttribute("y1", `${startPoint.imag}`)
+        actualSample.setAttribute("x2", `${endPoint.real}`)
+        actualSample.setAttribute("y2", `${endPoint.imag}`)
+        actualSample.setAttribute("stroke", `${color}`)
+
+        spectraSvg.setAttribute("viewBox", `${startPoint.real - .05} 
+                                            ${startPoint.imag  - .05} 
+                                            ${endPoint.real - startPoint.real + .1}
+                                            ${endPoint.imag - startPoint.imag + .1}`)
+
+        const calculatedSample = actualSample.cloneNode(false) as SVGLineElement
+        calculatedSample.setAttribute("id", "calculatedSample")
+        spectraSvg.appendChild(calculatedSample)
+
+        
+        i++
+    }, 100)
+
 }
 
 function rotate(vector: {real: number, imag: number}, rotationAngle: number): {real: number, imag: number}{

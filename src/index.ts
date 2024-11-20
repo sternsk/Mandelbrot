@@ -1,5 +1,5 @@
 
-console.log("ver 1234")
+console.log("ver 2104")
 
 import { boundaryPoints, calcMandelbrotOutline } from "./calcMandelbrotOutline.js";
 import { Mandelbrot } from "./calcnPlot.js";
@@ -25,6 +25,25 @@ overviewSvg.setAttribute("id", "mandelbrotSvg")
 overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
 overviewSvg.setAttribute("width", `${overviewSvgWidth}px`)
 overviewSvg.setAttribute("height", `${overviewSvgHeight}px`)
+
+export const spectraSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+spectraSvg.setAttribute("id", "spectraSvg")
+spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
+spectraSvg.setAttribute("width", `${overviewSvgWidth}px`)
+spectraSvg.setAttribute("height", `${overviewSvgHeight}px`)
+// if(document.documentElement.clientWidth < 1004){
+//     spectraSvg.style.display = "none"
+// }else{
+// spectraSvg.style.display = "block" // setting display somehow ruins the default layout
+// spectraSvg.style.position = "static"
+// }
+
+window.addEventListener("resize", () =>{
+    if (document.documentElement.clientWidth < 1004){
+        spectraSvg.style.display = "none"
+    } 
+})
+
 
 const viewControlsContainer = document.createElement("div")
 viewControlsContainer.id = "viewControlsContainer"
@@ -158,6 +177,7 @@ viewControlsContainer.appendChild(zoomSliderLabel)
 viewControlsContainer.appendChild(zoomSlider)
 
 viewElementsContainer.appendChild(overviewSvg)
+viewElementsContainer.appendChild(spectraSvg)
 viewElementsContainer.appendChild(xDataSvg)
 viewElementsContainer.appendChild(yDataSvg)
 
