@@ -305,13 +305,54 @@ overviewSvg.addEventListener("wheel", (event) =>{
     overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
     
 })
+spectraSvg.addEventListener("mousedown", (event) =>{
+    mousedown = true
+    const coords = getSpectraCoords(event);
+    xOffset = coords.x;
+    yOffset = coords.y;
+})
+spectraSvg.addEventListener("mousemove", (event) =>{
+    if(!mousedown)
+        return
+    const coords = getSpectraCoords(event);
+    xMin += xOffset - coords.x
+    yMin += yOffset - coords.y
+    spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
+})
+spectraSvg.addEventListener("mouseup", ()=>{
+    mousedown = false
+    
+})
 
+spectraSvg.addEventListener("wheel", (event) =>{
+    
+    const oldWidth = width
+    const oldHeight = height
+    width += width * 10 / event.deltaY 
+    height = width
+    
+    xMin -= (width - oldWidth )/2
+    xMax = xMin + width
+    yMin -=(height - oldHeight)/2
+    yMax = yMin + height
+
+    spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
+    
+})
 // Helper to get SVG coordinates
 function getSvgCoords(event: MouseEvent) {
     const point = overviewSvg.createSVGPoint();
     point.x = event.clientX;
     point.y = event.clientY;
     const svgCoords = point.matrixTransform(overviewSvg.getScreenCTM()!.inverse());
+    return svgCoords;
+}
+
+function getSpectraCoords(event: MouseEvent) {
+    const point = spectraSvg.createSVGPoint();
+    point.x = event.clientX;
+    point.y = event.clientY;
+    const svgCoords = point.matrixTransform(spectraSvg.getScreenCTM()!.inverse());
     return svgCoords;
 }
 

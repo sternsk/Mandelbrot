@@ -129,40 +129,48 @@ Da die Schleife nicht wartet, bis der setTimeout-Callback ausgeführt wurde, kö
     console.log(`sampling mb-outline in ${duration} ms`)
 }
 
-function animateOutline(){
-    let i = 0
-    
-    const interval = setInterval(() =>{
+let currentAnimation: NodeJS.Timeout | null = null; // Speichert das aktuelle Intervall
 
-        if (i >= allSteps.length || !done) {
-            clearInterval(interval); // Intervall beenden
-            console.log("intervall cleared")
-            return;
+function animateOutline(){
+    if(done){
+        let i = 0
+        if (currentAnimation !== null) {
+            clearInterval(currentAnimation);
+            currentAnimation = null;
+            console.log("Vorherige Animation abgebrochen");
         }
         
-        const startPoint = allSteps[i].startPoint
-        const endPoint = allSteps[i].endPoint
-        const color = allSteps[i].color
-        
-        actualSample.setAttribute("x1", `${startPoint.real}`)
-        actualSample.setAttribute("y1", `${startPoint.imag}`)
-        actualSample.setAttribute("x2", `${endPoint.real}`)
-        actualSample.setAttribute("y2", `${endPoint.imag}`)
-        actualSample.setAttribute("stroke", `${color}`)
+        currentAnimation = setInterval(() =>{
+            
+            if (i >= allSteps.length || !done) {
+                clearInterval(currentAnimation!); // Intervall beenden
+                console.log("intervall cleared")
+                return;
+            }
 
-        spectraSvg.setAttribute("viewBox", `${startPoint.real - .05} 
-                                            ${startPoint.imag  - .05} 
-                                            ${endPoint.real - startPoint.real + .1}
-                                            ${endPoint.imag - startPoint.imag + .1}`)
+            const startPoint = allSteps[i].startPoint
+            const endPoint = allSteps[i].endPoint
+            const color = allSteps[i].color
+            
+            actualSample.setAttribute("x1", `${startPoint.real}`)
+            actualSample.setAttribute("y1", `${startPoint.imag}`)
+            actualSample.setAttribute("x2", `${endPoint.real}`)
+            actualSample.setAttribute("y2", `${endPoint.imag}`)
+            actualSample.setAttribute("stroke", `${color}`)
 
-        const calculatedSample = actualSample.cloneNode(false) as SVGLineElement
-        calculatedSample.setAttribute("id", "calculatedSample")
-        spectraSvg.appendChild(calculatedSample)
+            // spectraSvg.setAttribute("viewBox", `${startPoint.real - .05} 
+            //                                     ${startPoint.imag  - .05} 
+            //                                     ${endPoint.real - startPoint.real + .1}
+            //                                     ${endPoint.imag - startPoint.imag + .1}`)
 
-        
-        i++
-    }, 100)
+            const calculatedSample = actualSample.cloneNode(false) as SVGLineElement
+            calculatedSample.setAttribute("id", "calculatedSample")
+            spectraSvg.appendChild(calculatedSample)
 
+            
+            i++
+        }, 100)
+    }
 }
 
 function rotate(vector: {real: number, imag: number}, rotationAngle: number): {real: number, imag: number}{

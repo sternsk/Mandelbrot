@@ -9,5 +9,7 @@
     "moduleResolution": "Node",
     "sourceMap": true,
     "baseUrl": "./",
+    "typeRoots": ["node_modules/@types"],
+    "types": ["node"]
   }
 }

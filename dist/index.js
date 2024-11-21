@@ -79,31 +79,35 @@
     duration = Date.now() - begin;
     console.log(`sampling mb-outline in ${duration} ms`);
   }
+  var currentAnimation = null;
   function animateOutline() {
-    let i = 0;
-    const interval = setInterval(() => {
-      if (i >= allSteps.length || !done) {
-        clearInterval(interval);
-        console.log("intervall cleared");
-        return;
+    if (done) {
+      let i = 0;
+      if (currentAnimation !== null) {
+        clearInterval(currentAnimation);
+        currentAnimation = null;
+        console.log("Vorherige Animation abgebrochen");
       }
-      const startPoint = allSteps[i].startPoint;
-      const endPoint = allSteps[i].endPoint;
-      const color = allSteps[i].color;
-      actualSample.setAttribute("x1", `${startPoint.real}`);
-      actualSample.setAttribute("y1", `${startPoint.imag}`);
-      actualSample.setAttribute("x2", `${endPoint.real}`);
-      actualSample.setAttribute("y2", `${endPoint.imag}`);
-      actualSample.setAttribute("stroke", `${color}`);
-      spectraSvg.setAttribute("viewBox", `${startPoint.real - 0.05} 
-                                            ${startPoint.imag - 0.05} 
-                                            ${endPoint.real - startPoint.real + 0.1}
-                                            ${endPoint.imag - startPoint.imag + 0.1}`);
-      const calculatedSample = actualSample.cloneNode(false);
-      calculatedSample.setAttribute("id", "calculatedSample");
-      spectraSvg.appendChild(calculatedSample);
-      i++;
-    }, 100);
+      currentAnimation = setInterval(() => {
+        if (i >= allSteps.length || !done) {
+          clearInterval(currentAnimation);
+          console.log("intervall cleared");
+          return;
+        }
+        const startPoint = allSteps[i].startPoint;
+        const endPoint = allSteps[i].endPoint;
+        const color = allSteps[i].color;
+        actualSample.setAttribute("x1", `${startPoint.real}`);
+        actualSample.setAttribute("y1", `${startPoint.imag}`);
+        actualSample.setAttribute("x2", `${endPoint.real}`);
+        actualSample.setAttribute("y2", `${endPoint.imag}`);
+        actualSample.setAttribute("stroke", `${color}`);
+        const calculatedSample = actualSample.cloneNode(false);
+        calculatedSample.setAttribute("id", "calculatedSample");
+        spectraSvg.appendChild(calculatedSample);
+        i++;
+      }, 100);
+    }
   }
   function rotate(vector, rotationAngle) {
     const originLength = Math.sqrt(Math.pow(vector.real, 2) + Math.pow(vector.imag, 2));
@@ -470,11 +474,46 @@
     yMax = yMin + height;
     overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   });
+  spectraSvg.addEventListener("mousedown", (event) => {
+    mousedown = true;
+    const coords = getSpectraCoords(event);
+    xOffset = coords.x;
+    yOffset = coords.y;
+  });
+  spectraSvg.addEventListener("mousemove", (event) => {
+    if (!mousedown)
+      return;
+    const coords = getSpectraCoords(event);
+    xMin += xOffset - coords.x;
+    yMin += yOffset - coords.y;
+    spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+  });
+  spectraSvg.addEventListener("mouseup", () => {
+    mousedown = false;
+  });
+  spectraSvg.addEventListener("wheel", (event) => {
+    const oldWidth = width;
+    const oldHeight = height;
+    width += width * 10 / event.deltaY;
+    height = width;
+    xMin -= (width - oldWidth) / 2;
+    xMax = xMin + width;
+    yMin -= (height - oldHeight) / 2;
+    yMax = yMin + height;
+    spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+  });
   function getSvgCoords(event) {
     const point = overviewSvg.createSVGPoint();
     point.x = event.clientX;
     point.y = event.clientY;
     const svgCoords = point.matrixTransform(overviewSvg.getScreenCTM().inverse());
+    return svgCoords;
+  }
+  function getSpectraCoords(event) {
+    const point = spectraSvg.createSVGPoint();
+    point.x = event.clientX;
+    point.y = event.clientY;
+    const svgCoords = point.matrixTransform(spectraSvg.getScreenCTM().inverse());
     return svgCoords;
   }
   function drawLines() {
