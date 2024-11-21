@@ -31,6 +31,7 @@ spectraSvg.setAttribute("id", "spectraSvg")
 spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
 spectraSvg.setAttribute("width", `${overviewSvgWidth}px`)
 spectraSvg.setAttribute("height", `${overviewSvgHeight}px`)
+
 // if(document.documentElement.clientWidth < 1004){
 //     spectraSvg.style.display = "none"
 // }else{
@@ -38,11 +39,11 @@ spectraSvg.setAttribute("height", `${overviewSvgHeight}px`)
 // spectraSvg.style.position = "static"
 // }
 
-window.addEventListener("resize", () =>{
-    if (document.documentElement.clientWidth < 1004){
-        spectraSvg.style.display = "none"
-    } 
-})
+// window.addEventListener("resize", () =>{
+//     if (document.documentElement.clientWidth < 1004){
+//         spectraSvg.style.display = "none"
+//     } 
+// })
 
 
 const viewControlsContainer = document.createElement("div")
@@ -292,9 +293,16 @@ overviewSvg.addEventListener("mouseup", ()=>{
 
 overviewSvg.addEventListener("wheel", (event) =>{
     
+    let deltaY = event.deltaY
+    if(Math.abs(deltaY) < 100){
+        if(deltaY <= 0)
+            deltaY -= 100
+        else
+            deltaY += 100
+    }
     const oldWidth = width
     const oldHeight = height
-    width += width * 10 / event.deltaY 
+    width += width * 10 / deltaY 
     height = width
     
     xMin -= (width - oldWidth )/2
@@ -326,9 +334,17 @@ spectraSvg.addEventListener("mouseup", ()=>{
 
 spectraSvg.addEventListener("wheel", (event) =>{
     
+    let deltaY = event.deltaY
+    if(Math.abs(deltaY) < 100){
+        if(deltaY <= 0)
+            deltaY -= 100
+        else
+            deltaY += 100
+    }
+
     const oldWidth = width
     const oldHeight = height
-    width += width * 10 / event.deltaY 
+    width += width * 10 / deltaY 
     height = width
     
     xMin -= (width - oldWidth )/2

@@ -259,11 +259,6 @@
   spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   spectraSvg.setAttribute("width", `${overviewSvgWidth}px`);
   spectraSvg.setAttribute("height", `${overviewSvgHeight}px`);
-  window.addEventListener("resize", () => {
-    if (document.documentElement.clientWidth < 1004) {
-      spectraSvg.style.display = "none";
-    }
-  });
   var viewControlsContainer = document.createElement("div");
   viewControlsContainer.id = "viewControlsContainer";
   viewControlsContainer.style.border = "1px solid black";
@@ -464,9 +459,16 @@
     drawLines();
   });
   overviewSvg.addEventListener("wheel", (event) => {
+    let deltaY = event.deltaY;
+    if (Math.abs(deltaY) < 100) {
+      if (deltaY <= 0)
+        deltaY -= 100;
+      else
+        deltaY += 100;
+    }
     const oldWidth = width;
     const oldHeight = height;
-    width += width * 10 / event.deltaY;
+    width += width * 10 / deltaY;
     height = width;
     xMin -= (width - oldWidth) / 2;
     xMax = xMin + width;
@@ -492,9 +494,16 @@
     mousedown = false;
   });
   spectraSvg.addEventListener("wheel", (event) => {
+    let deltaY = event.deltaY;
+    if (Math.abs(deltaY) < 100) {
+      if (deltaY <= 0)
+        deltaY -= 100;
+      else
+        deltaY += 100;
+    }
     const oldWidth = width;
     const oldHeight = height;
-    width += width * 10 / event.deltaY;
+    width += width * 10 / deltaY;
     height = width;
     xMin -= (width - oldWidth) / 2;
     xMax = xMin + width;
