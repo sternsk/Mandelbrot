@@ -42,18 +42,19 @@
     boundaryPoints = [];
     const startPoint = { real: -2, imag: 0 };
     let directionVector = { real: -1, imag: 0 };
-    const sampleLength = 1 / Math.pow(iterationDepth, 3);
+    const sampleLength = 0.1 / Math.pow(iterationDepth, 3);
     const sampleAngle = Math.PI / 8;
     let actualPoint = add(startPoint, scale(directionVector, sampleLength / 2));
-    console.log("samplingRate: " + sampleLength + " at iterationDepth: " + iterationDepth);
+    console.log("sampleLength: " + sampleLength + " at iterationDepth: " + iterationDepth);
     boundaryPoints.push(actualPoint);
     directionVector = { real: 0, imag: 1 };
     while (actualPoint.imag >= 0) {
       if (mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))) {
+        directionVector = rotate(directionVector, 0.5 * sampleAngle);
         while (mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))) {
           const endPoint = add(actualPoint, scale(directionVector, sampleLength));
           allSteps.push({ startPoint: actualPoint, endPoint, color: "brown" });
-          directionVector = rotate(directionVector, sampleAngle);
+          directionVector = rotate(directionVector, 0.5 * sampleAngle);
         }
         const endpoint = add(actualPoint, scale(directionVector, sampleLength));
         allSteps.push({ startPoint: actualPoint, endPoint: endpoint, color: "red" });
@@ -61,23 +62,28 @@
         boundaryPoints.push(actualPoint);
       }
       if (!mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))) {
+        if (mandelbrot(add(actualPoint, scale(directionVector, sampleLength / 2)))) {
+          console.log("actualPoint + directionVector is not, but actualPoint + directionVector/2 is inside the Mandelbrot");
+          directionVector = rotate(directionVector, 2 * sampleAngle);
+        }
         while (!mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))) {
           const endPoint = add(actualPoint, scale(directionVector, sampleLength));
           allSteps.push({ startPoint: actualPoint, endPoint, color: "blue" });
-          directionVector = rotate(directionVector, -sampleAngle);
+          directionVector = rotate(directionVector, -0.5 * sampleAngle);
         }
-        directionVector = rotate(directionVector, sampleAngle);
+        directionVector = rotate(directionVector, 0.5 * sampleAngle);
         const endpoint = add(actualPoint, scale(directionVector, sampleLength));
         allSteps.push({ startPoint: actualPoint, endPoint: endpoint, color: "red" });
         actualPoint = endpoint;
         boundaryPoints.push(actualPoint);
       }
-      done = true;
-      animateOutline();
     }
+    done = true;
+    if (animationRequest)
+      animateOutline();
     console.log("boundaryPoints.length: " + boundaryPoints.length);
     duration = Date.now() - begin;
-    console.log(`sampling mb-outline in ${duration} ms`);
+    console.log(`sampling duration: ${duration} ms`);
   }
   var currentAnimation = null;
   function animateOutline() {
@@ -86,12 +92,12 @@
       if (currentAnimation !== null) {
         clearInterval(currentAnimation);
         currentAnimation = null;
-        console.log("Vorherige Animation abgebrochen");
+        spectraSvg.innerHTML = "";
       }
       currentAnimation = setInterval(() => {
         if (i >= allSteps.length || !done) {
           clearInterval(currentAnimation);
-          console.log("intervall cleared");
+          console.log("animation restarted");
           return;
         }
         const startPoint = allSteps[i].startPoint;
@@ -103,10 +109,10 @@
         actualSample.setAttribute("y2", `${endPoint.imag}`);
         actualSample.setAttribute("stroke", `${color}`);
         const calculatedSample = actualSample.cloneNode(false);
-        calculatedSample.setAttribute("id", "calculatedSample");
+        calculatedSample.setAttribute("id", `calculatedSample ${i}`);
         spectraSvg.appendChild(calculatedSample);
         i++;
-      }, 100);
+      }, 1);
     }
   }
   function rotate(vector, rotationAngle) {
@@ -161,7 +167,7 @@
         z.imag = 2 * z.real * z.imag + c.imag;
         z.real = realTemp;
         iterations++;
-        if (iterations == iterationDepth && z.real * z.real + z.imag * z.imag > 3.5 && z.real * z.real + z.imag * z.imag <= 4.5) {
+        if (iterations == iterationDepth && z.real * z.real + z.imag * z.imag > 3.5 && z.real * z.real + z.imag * z.imag <= 4) {
           return viewPortCoordinate;
         }
       }
@@ -247,6 +253,7 @@
   var xMax = xMin + width;
   var yMin = -1.2;
   var yMax = yMin + height;
+  var animationRequest = true;
   var headline = document.createElement("h1");
   headline.innerHTML = `View and oszillate the mandelbrot at depth: ${iterationDepth}`;
   var overviewSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -259,6 +266,9 @@
   spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   spectraSvg.setAttribute("width", `${overviewSvgWidth}px`);
   spectraSvg.setAttribute("height", `${overviewSvgHeight}px`);
+  if (document.documentElement.clientWidth < 1004) {
+    animationRequest = false;
+  }
   var viewControlsContainer = document.createElement("div");
   viewControlsContainer.id = "viewControlsContainer";
   viewControlsContainer.style.border = "1px solid black";
@@ -370,8 +380,6 @@
   viewControlsContainer.appendChild(zoomSlider);
   viewElementsContainer.appendChild(overviewSvg);
   viewElementsContainer.appendChild(spectraSvg);
-  viewElementsContainer.appendChild(xDataSvg);
-  viewElementsContainer.appendChild(yDataSvg);
   calcMandelbrotOutline();
   drawLines();
   var xDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "real"));
@@ -393,12 +401,6 @@
     calcMandelbrotOutline();
     if (isPlaying) createOscillatorFromWaveform(boundaryPoints);
     drawLines();
-    xDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "real"));
-    xDataSvg.innerHTML = "";
-    xDataSvg.appendChild(xDataLine);
-    yDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "imag"));
-    yDataSvg.innerHTML = "";
-    yDataSvg.appendChild(yDataLine);
   });
   xMinSlider.addEventListener("input", function() {
     xMin = parseFloat(xMinSlider.value);
@@ -441,14 +443,14 @@
   var mousedown = false;
   overviewSvg.addEventListener("mousedown", (event) => {
     mousedown = true;
-    const coords = getSvgCoords(event);
+    const coords = getSvgCoords(overviewSvg, event);
     xOffset = coords.x;
     yOffset = coords.y;
   });
   overviewSvg.addEventListener("mousemove", (event) => {
     if (!mousedown)
       return;
-    const coords = getSvgCoords(event);
+    const coords = getSvgCoords(overviewSvg, event);
     xMin += xOffset - coords.x;
     yMin += yOffset - coords.y;
     overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
@@ -460,6 +462,10 @@
   });
   overviewSvg.addEventListener("wheel", (event) => {
     let deltaY = event.deltaY;
+    const clientWidth = overviewSvg.getBoundingClientRect().width;
+    const mouseX = event.x - overviewSvg.getBoundingClientRect().x;
+    const clientHeight = overviewSvg.getBoundingClientRect().height;
+    const mouseY = event.y - overviewSvg.getBoundingClientRect().y;
     if (Math.abs(deltaY) < 100) {
       if (deltaY <= 0)
         deltaY -= 100;
@@ -470,22 +476,22 @@
     const oldHeight = height;
     width += width * 10 / deltaY;
     height = width;
-    xMin -= (width - oldWidth) / 2;
+    xMin -= (width - oldWidth) * mouseX / clientWidth;
     xMax = xMin + width;
-    yMin -= (height - oldHeight) / 2;
+    yMin -= (height - oldHeight) * mouseY / clientHeight;
     yMax = yMin + height;
     overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   });
   spectraSvg.addEventListener("mousedown", (event) => {
     mousedown = true;
-    const coords = getSpectraCoords(event);
+    const coords = getSvgCoords(spectraSvg, event);
     xOffset = coords.x;
     yOffset = coords.y;
   });
   spectraSvg.addEventListener("mousemove", (event) => {
     if (!mousedown)
       return;
-    const coords = getSpectraCoords(event);
+    const coords = getSvgCoords(spectraSvg, event);
     xMin += xOffset - coords.x;
     yMin += yOffset - coords.y;
     spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
@@ -494,6 +500,10 @@
     mousedown = false;
   });
   spectraSvg.addEventListener("wheel", (event) => {
+    const clientWidth = spectraSvg.getBoundingClientRect().width;
+    const mouseX = event.x - spectraSvg.getBoundingClientRect().x;
+    const clientHeight = spectraSvg.getBoundingClientRect().height;
+    const mouseY = event.y - spectraSvg.getBoundingClientRect().y;
     let deltaY = event.deltaY;
     if (Math.abs(deltaY) < 100) {
       if (deltaY <= 0)
@@ -505,24 +515,17 @@
     const oldHeight = height;
     width += width * 10 / deltaY;
     height = width;
-    xMin -= (width - oldWidth) / 2;
+    xMin -= (width - oldWidth) * mouseX / clientWidth;
     xMax = xMin + width;
-    yMin -= (height - oldHeight) / 2;
+    yMin -= (height - oldHeight) * mouseY / clientHeight;
     yMax = yMin + height;
     spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   });
-  function getSvgCoords(event) {
-    const point = overviewSvg.createSVGPoint();
+  function getSvgCoords(svgElement, event) {
+    const point = svgElement.createSVGPoint();
     point.x = event.clientX;
     point.y = event.clientY;
-    const svgCoords = point.matrixTransform(overviewSvg.getScreenCTM().inverse());
-    return svgCoords;
-  }
-  function getSpectraCoords(event) {
-    const point = spectraSvg.createSVGPoint();
-    point.x = event.clientX;
-    point.y = event.clientY;
-    const svgCoords = point.matrixTransform(spectraSvg.getScreenCTM().inverse());
+    const svgCoords = point.matrixTransform(svgElement.getScreenCTM().inverse());
     return svgCoords;
   }
   function drawLines() {

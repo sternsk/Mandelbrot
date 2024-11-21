@@ -23,7 +23,7 @@ export class Mandelbrot{
             z.imag = 2 * z.real * z.imag + c.imag;
             z.real = realTemp;
             iterations++;
-            if (iterations == iterationDepth && z.real * z.real + z.imag * z.imag > 3.5 && z.real * z.real + z.imag * z.imag <= 4.5){
+            if (iterations == iterationDepth && z.real * z.real + z.imag * z.imag > 3.5 && z.real * z.real + z.imag * z.imag <= 4){
                 return viewPortCoordinate
             }
         }

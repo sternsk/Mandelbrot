@@ -16,6 +16,7 @@ let height = width
 export let iterationDepth = 4;  // Iterationstiefe
 export let xMin = -2, xMax = xMin + width
 export let yMin = -1.2, yMax = yMin + height
+export let animationRequest = true
 
 const headline: HTMLHeadElement = document.createElement("h1")
 headline.innerHTML = `View and oszillate the mandelbrot at depth: ${iterationDepth}`
@@ -32,9 +33,11 @@ spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
 spectraSvg.setAttribute("width", `${overviewSvgWidth}px`)
 spectraSvg.setAttribute("height", `${overviewSvgHeight}px`)
 
-// if(document.documentElement.clientWidth < 1004){
-//     spectraSvg.style.display = "none"
-// }else{
+if(document.documentElement.clientWidth < 1004){
+    animationRequest = false
+    // spectraSvg.style.display = "none"
+}
+// else{
 // spectraSvg.style.display = "block" // setting display somehow ruins the default layout
 // spectraSvg.style.position = "static"
 // }
@@ -179,8 +182,8 @@ viewControlsContainer.appendChild(zoomSlider)
 
 viewElementsContainer.appendChild(overviewSvg)
 viewElementsContainer.appendChild(spectraSvg)
-viewElementsContainer.appendChild(xDataSvg)
-viewElementsContainer.appendChild(yDataSvg)
+// viewElementsContainer.appendChild(xDataSvg)
+// viewElementsContainer.appendChild(yDataSvg)
 
 // calc and plot MandelbrotOutline
 calcMandelbrotOutline()
@@ -213,13 +216,13 @@ iterationsSlider.addEventListener("input", function(event){
     if(isPlaying) createOscillatorFromWaveform(boundaryPoints)
     drawLines()
 
-    xDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "real"))
-    xDataSvg.innerHTML = ""
-    xDataSvg.appendChild(xDataLine)
+    // xDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "real"))
+    // xDataSvg.innerHTML = ""
+    // xDataSvg.appendChild(xDataLine)
     
-    yDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "imag"))
-    yDataSvg.innerHTML = ""
-    yDataSvg.appendChild(yDataLine)
+    // yDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "imag"))
+    // yDataSvg.innerHTML = ""
+    // yDataSvg.appendChild(yDataLine)
 })
 
 xMinSlider.addEventListener("input", function(){
@@ -271,7 +274,7 @@ let yOffset: number
 let mousedown = false
 overviewSvg.addEventListener("mousedown", (event) =>{
     mousedown = true
-    const coords = getSvgCoords(event);
+    const coords = getSvgCoords(overviewSvg, event);
     xOffset = coords.x;
     yOffset = coords.y;
 })
@@ -279,7 +282,7 @@ overviewSvg.addEventListener("mousedown", (event) =>{
 overviewSvg.addEventListener("mousemove", (event) =>{
     if(!mousedown)
         return
-    const coords = getSvgCoords(event);
+    const coords = getSvgCoords(overviewSvg, event);
     xMin += xOffset - coords.x
     yMin += yOffset - coords.y
     overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
@@ -294,6 +297,11 @@ overviewSvg.addEventListener("mouseup", ()=>{
 overviewSvg.addEventListener("wheel", (event) =>{
     
     let deltaY = event.deltaY
+    const clientWidth = overviewSvg.getBoundingClientRect().width
+    const mouseX = event.x - overviewSvg.getBoundingClientRect().x
+    const clientHeight = overviewSvg.getBoundingClientRect().height
+    const mouseY = event.y - overviewSvg.getBoundingClientRect().y
+
     if(Math.abs(deltaY) < 100){
         if(deltaY <= 0)
             deltaY -= 100
@@ -305,9 +313,9 @@ overviewSvg.addEventListener("wheel", (event) =>{
     width += width * 10 / deltaY 
     height = width
     
-    xMin -= (width - oldWidth )/2
+    xMin -= (width - oldWidth) * mouseX / clientWidth 
     xMax = xMin + width
-    yMin -=(height - oldHeight)/2
+    yMin -=(height - oldHeight) * mouseY / clientHeight 
     yMax = yMin + height
 
     overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
@@ -315,14 +323,14 @@ overviewSvg.addEventListener("wheel", (event) =>{
 })
 spectraSvg.addEventListener("mousedown", (event) =>{
     mousedown = true
-    const coords = getSpectraCoords(event);
+    const coords = getSvgCoords(spectraSvg, event);
     xOffset = coords.x;
     yOffset = coords.y;
 })
 spectraSvg.addEventListener("mousemove", (event) =>{
     if(!mousedown)
         return
-    const coords = getSpectraCoords(event);
+    const coords = getSvgCoords(spectraSvg, event);
     xMin += xOffset - coords.x
     yMin += yOffset - coords.y
     spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
@@ -333,7 +341,12 @@ spectraSvg.addEventListener("mouseup", ()=>{
 })
 
 spectraSvg.addEventListener("wheel", (event) =>{
-    
+    const clientWidth = spectraSvg.getBoundingClientRect().width
+    const mouseX = event.x - spectraSvg.getBoundingClientRect().x
+    const clientHeight = spectraSvg.getBoundingClientRect().height
+    const mouseY = event.y - spectraSvg.getBoundingClientRect().y
+
+    // differentiate between mousewheel and touchpad
     let deltaY = event.deltaY
     if(Math.abs(deltaY) < 100){
         if(deltaY <= 0)
@@ -347,30 +360,30 @@ spectraSvg.addEventListener("wheel", (event) =>{
     width += width * 10 / deltaY 
     height = width
     
-    xMin -= (width - oldWidth )/2
+    xMin -= (width - oldWidth ) * mouseX / clientWidth
     xMax = xMin + width
-    yMin -=(height - oldHeight)/2
+    yMin -=(height - oldHeight) * mouseY / clientHeight
     yMax = yMin + height
 
     spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
     
 })
 // Helper to get SVG coordinates
-function getSvgCoords(event: MouseEvent) {
-    const point = overviewSvg.createSVGPoint();
+function getSvgCoords(svgElement: SVGSVGElement, event: MouseEvent) {
+    const point = svgElement.createSVGPoint();
     point.x = event.clientX;
     point.y = event.clientY;
-    const svgCoords = point.matrixTransform(overviewSvg.getScreenCTM()!.inverse());
+    const svgCoords = point.matrixTransform(svgElement.getScreenCTM()!.inverse());
     return svgCoords;
 }
 
-function getSpectraCoords(event: MouseEvent) {
-    const point = spectraSvg.createSVGPoint();
-    point.x = event.clientX;
-    point.y = event.clientY;
-    const svgCoords = point.matrixTransform(spectraSvg.getScreenCTM()!.inverse());
-    return svgCoords;
-}
+// function getSpectraCoords(event: MouseEvent) {
+//     const point = spectraSvg.createSVGPoint();
+//     point.x = event.clientX;
+//     point.y = event.clientY;
+//     const svgCoords = point.matrixTransform(spectraSvg.getScreenCTM()!.inverse());
+//     return svgCoords;
+// }
 
 function mapToCanvas(point: {real: number, imag: number}): {x: number, y: number}{
     const x = ((point.real - xMin) / (xMax - xMin)) * overviewSvgWidth; // Bereich real -2 bis 2 auf 0 bis canvasWidth skalieren
