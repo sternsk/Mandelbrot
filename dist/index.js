@@ -43,11 +43,11 @@
     console.log(`sampling duration: ${duration} ms`);
     return boundaryPoints;
   }
-  function mirrorX(samplePoints2) {
-    const arrayLength = samplePoints2.length;
-    const mirroredPoints = [...samplePoints2];
+  function mirrorX(samplePoints) {
+    const arrayLength = samplePoints.length;
+    const mirroredPoints = [...samplePoints];
     for (let index = arrayLength - 2; index >= 0; index--) {
-      const reversedPoint = { real: samplePoints2[index].real, imag: -samplePoints2[index].imag };
+      const reversedPoint = { real: samplePoints[index].real, imag: -samplePoints[index].imag };
       mirroredPoints.push(reversedPoint);
     }
     return mirroredPoints;
@@ -135,20 +135,20 @@
   var yMin = -1.2;
   var yMax = yMin + height;
   var animationRequest = true;
-  var samplePoints = [];
-  var sampleCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  var dftPoints = [];
+  var rawSample = [];
+  var rawCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  var dftsample = [];
   var dftPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  var idftPoints = [];
+  var idftSample = [];
   var idftPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   var inversionAccuracy = 169;
   var headline = document.createElement("h1");
   updateHeadline();
-  var sampleCurveSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  sampleCurveSvg.setAttribute("id", "sampleCurveSvg");
-  sampleCurveSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
-  sampleCurveSvg.setAttribute("width", `${overviewSvgWidth}px`);
-  sampleCurveSvg.setAttribute("height", `${overviewSvgHeight}px`);
+  var rawsampleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  rawsampleSvg.setAttribute("id", "sampleCurveSvg");
+  rawsampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+  rawsampleSvg.setAttribute("width", `${overviewSvgWidth}px`);
+  rawsampleSvg.setAttribute("height", `${overviewSvgHeight}px`);
   var dftSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   dftSvg.setAttribute("id", "dftSvg");
   dftSvg.setAttribute("width", `${dftSvgWidth}`);
@@ -171,14 +171,14 @@
   soundControlsContainer.id = "soundControlsContainer";
   soundControlsContainer.style.border = "1px solid black";
   soundControlsContainer.style.padding = "10px";
-  samplePoints = calcMandelbrotOutline();
-  sampleCurvePath = drawLines(mirrorX(samplePoints));
-  sampleCurveSvg.appendChild(sampleCurvePath);
-  dftPoints = dft(samplePoints);
-  dftPath = drawLines(dftPoints);
+  rawSample = mirrorX(calcMandelbrotOutline());
+  rawCurvePath = drawLines(rawSample);
+  rawsampleSvg.appendChild(rawCurvePath);
+  dftsample = dft(rawSample);
+  dftPath = drawLines(dftsample);
   dftSvg.appendChild(dftPath);
-  idftPoints = idft(dftPoints, inversionAccuracy);
-  idftPath = drawLines(idftPoints);
+  idftSample = idft(dftsample, inversionAccuracy);
+  idftPath = drawLines(idftSample);
   idftSvg.appendChild(idftPath);
   var soundButton = document.createElement("button");
   soundButton.innerHTML = "oscillate boundary points";
@@ -193,13 +193,21 @@
     }
     if (!isPlaying) {
       soundButton.textContent = "stop sound";
-      const sample = idftPoints;
+      console.log(sampleSelector.value);
+      let sample;
+      if (sampleSelector.value == "dft")
+        sample = dftsample;
+      else if (sampleSelector.value == "idft")
+        sample = idftSample;
+      else
+        sample = rawSample;
       const wave = audioContext.createPeriodicWave(
         extractValuesAsFloat32Array(sample, "real"),
         extractValuesAsFloat32Array(sample, "imag")
       );
       oscillator.setPeriodicWave(wave);
       oscillator.connect(audioContext.destination);
+      oscillator.frequency.value = parseInt(frequencySlider.value);
       oscillator.start();
     }
     if (isPlaying) {
@@ -215,6 +223,35 @@
       soundButton.textContent = "oscillate boundary points";
     }
     isPlaying = !isPlaying;
+  });
+  var frequencySliderLabel = document.createElement("label");
+  frequencySliderLabel.setAttribute("for", "frequencySlider");
+  frequencySliderLabel.innerHTML = " frequency: ";
+  var frequencySlider = document.createElement("input");
+  frequencySlider.id = "frequencySlider";
+  frequencySlider.type = "range";
+  frequencySlider.min = "1";
+  frequencySlider.max = "440";
+  frequencySlider.value = "1";
+  frequencySlider.addEventListener("input", (event) => {
+    const frequency = event.target.valueAsNumber;
+    if (oscillator)
+      oscillator.frequency.value = frequency;
+  });
+  var sampleSelector = document.createElement("select");
+  var selectRawSample = document.createElement("option");
+  var selectDFT = document.createElement("option");
+  var selectIDFT = document.createElement("option");
+  selectRawSample.setAttribute("value", "RawSample");
+  selectDFT.setAttribute("value", "dft");
+  selectIDFT.setAttribute("value", "idft");
+  selectRawSample.textContent = "RawSample";
+  selectDFT.textContent = "Fourier-transformed Data";
+  selectIDFT.textContent = "retransformed Fourier Data";
+  sampleSelector.appendChild(selectRawSample);
+  sampleSelector.appendChild(selectDFT);
+  sampleSelector.appendChild(selectIDFT);
+  sampleSelector.addEventListener("change", () => {
   });
   var iterationDepthSliderLabel = document.createElement("label");
   iterationDepthSliderLabel.setAttribute("for", "iterationsSlider");
@@ -233,17 +270,19 @@
   inversionAccuracySlider.id = "sampleAmountSlider";
   inversionAccuracySlider.type = "range";
   inversionAccuracySlider.min = "1";
-  inversionAccuracySlider.max = `${samplePoints.length}`;
+  inversionAccuracySlider.max = `${rawSample.length}`;
   inversionAccuracySlider.step = "1";
   inversionAccuracySlider.value = `${inversionAccuracy}`;
   soundControlsContainer.appendChild(soundButton);
+  soundControlsContainer.appendChild(frequencySliderLabel);
+  soundControlsContainer.appendChild(frequencySlider);
+  soundControlsContainer.appendChild(sampleSelector);
   viewControlsContainer.appendChild(iterationDepthSliderLabel);
   viewControlsContainer.appendChild(iterationDepthSlider);
   viewControlsContainer.appendChild(inversionAccuracySliderLabel);
   viewControlsContainer.appendChild(inversionAccuracySlider);
-  viewElementsContainer.appendChild(sampleCurveSvg);
+  viewElementsContainer.appendChild(rawsampleSvg);
   viewElementsContainer.appendChild(dftSvg);
-  viewElementsContainer.appendChild(idftSvg);
   wrapper == null ? void 0 : wrapper.appendChild(headline);
   wrapper == null ? void 0 : wrapper.appendChild(soundControlsContainer);
   wrapper == null ? void 0 : wrapper.appendChild(viewControlsContainer);
@@ -251,54 +290,54 @@
   iterationDepthSlider.addEventListener("input", function(event) {
     iterationDepth = parseInt(iterationDepthSlider.value);
     updateHeadline();
-    samplePoints = calcMandelbrotOutline();
-    sampleCurvePath = drawLines(mirrorX(samplePoints));
-    sampleCurveSvg.innerHTML = "";
-    sampleCurveSvg.appendChild(sampleCurvePath);
-    inversionAccuracySlider.max = samplePoints.length.toString();
-    dftPoints = dft(samplePoints);
+    rawSample = mirrorX(calcMandelbrotOutline());
+    rawCurvePath = drawLines(mirrorX(rawSample));
+    rawsampleSvg.innerHTML = "";
+    rawsampleSvg.appendChild(rawCurvePath);
+    inversionAccuracySlider.max = rawSample.length.toString();
+    dftsample = dft(rawSample);
     dftSvg.innerHTML = "";
-    dftSvg.appendChild(drawLines(dftPoints));
+    dftSvg.appendChild(drawLines(dftsample));
     idftSvg.innerHTML = "";
-    idftSvg.appendChild(drawDots(idft(dftPoints, inversionAccuracy)));
+    idftSvg.appendChild(drawDots(idft(dftsample, inversionAccuracy)));
   });
   inversionAccuracySlider.addEventListener("input", function() {
     inversionAccuracy = parseFloat(inversionAccuracySlider.value);
     updateHeadline();
-    idftPath = drawDots(idft(dftPoints, inversionAccuracy));
+    idftPath = drawDots(idft(dftsample, inversionAccuracy));
     idftSvg.innerHTML = "";
     idftSvg.appendChild(idftPath);
   });
-  sampleCurveSvg.addEventListener("mouseleave", () => {
+  rawsampleSvg.addEventListener("mouseleave", () => {
     mousedown = false;
   });
   var xOffset;
   var yOffset;
   var mousedown = false;
-  sampleCurveSvg.addEventListener("mousedown", (event) => {
+  rawsampleSvg.addEventListener("mousedown", (event) => {
     mousedown = true;
-    const coords = getSvgCoords(sampleCurveSvg, event);
+    const coords = getSvgCoords(rawsampleSvg, event);
     xOffset = coords.x;
     yOffset = coords.y;
   });
-  sampleCurveSvg.addEventListener("mousemove", (event) => {
+  rawsampleSvg.addEventListener("mousemove", (event) => {
     if (!mousedown)
       return;
-    const coords = getSvgCoords(sampleCurveSvg, event);
+    const coords = getSvgCoords(rawsampleSvg, event);
     xMin += xOffset - coords.x;
     yMin += yOffset - coords.y;
-    sampleCurveSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+    rawsampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   });
-  sampleCurveSvg.addEventListener("mouseup", () => {
+  rawsampleSvg.addEventListener("mouseup", () => {
     mousedown = false;
-    drawLines(samplePoints);
+    drawLines(rawSample);
   });
-  sampleCurveSvg.addEventListener("wheel", (event) => {
+  rawsampleSvg.addEventListener("wheel", (event) => {
     let deltaY = event.deltaY;
-    const clientWidth = sampleCurveSvg.getBoundingClientRect().width;
-    const mouseX = event.x - sampleCurveSvg.getBoundingClientRect().x;
-    const clientHeight = sampleCurveSvg.getBoundingClientRect().height;
-    const mouseY = event.y - sampleCurveSvg.getBoundingClientRect().y;
+    const clientWidth = rawsampleSvg.getBoundingClientRect().width;
+    const mouseX = event.x - rawsampleSvg.getBoundingClientRect().x;
+    const clientHeight = rawsampleSvg.getBoundingClientRect().height;
+    const mouseY = event.y - rawsampleSvg.getBoundingClientRect().y;
     if (Math.abs(deltaY) < 100) {
       if (deltaY <= 0)
         deltaY -= 100;
@@ -313,7 +352,7 @@
     xMax = xMin + width;
     yMin -= (height - oldHeight) * mouseY / clientHeight;
     yMax = yMin + height;
-    sampleCurveSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+    rawsampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   });
   idftSvg.addEventListener("mousedown", (event) => {
     mousedown = true;
@@ -400,44 +439,44 @@
     const svgCoords = point.matrixTransform(svgElement.getScreenCTM().inverse());
     return svgCoords;
   }
-  function drawLines(samplePoints2) {
-    const sampleCurvePath2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    if (samplePoints2.length < 2) {
+  function drawLines(samplePoints) {
+    const sampleCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    if (samplePoints.length < 2) {
       console.warn("Not enough points to draw lines");
-      return sampleCurvePath2;
+      return sampleCurvePath;
     }
-    let pathData = `M${samplePoints2[0].real} ${samplePoints2[0].imag}`;
-    for (let i = 1; i < samplePoints2.length; i++) {
-      pathData += `L ${samplePoints2[i].real} ${samplePoints2[i].imag}`;
+    let pathData = `M${samplePoints[0].real} ${samplePoints[0].imag}`;
+    for (let i = 1; i < samplePoints.length; i++) {
+      pathData += `L ${samplePoints[i].real} ${samplePoints[i].imag}`;
     }
-    sampleCurvePath2.setAttribute("id", "outlinePath");
-    sampleCurvePath2.setAttribute("fill", "none");
-    sampleCurvePath2.setAttribute("stroke", "black");
-    sampleCurvePath2.setAttribute("stroke-width", ".5 px");
-    sampleCurvePath2.setAttribute("vector-effect", "non-scaling-stroke");
-    sampleCurvePath2.setAttribute("d", `${pathData}`);
-    return sampleCurvePath2;
+    sampleCurvePath.setAttribute("id", "outlinePath");
+    sampleCurvePath.setAttribute("fill", "none");
+    sampleCurvePath.setAttribute("stroke", "black");
+    sampleCurvePath.setAttribute("stroke-width", ".5 px");
+    sampleCurvePath.setAttribute("vector-effect", "non-scaling-stroke");
+    sampleCurvePath.setAttribute("d", `${pathData}`);
+    return sampleCurvePath;
   }
-  function drawDots(samplePoints2) {
-    const sampleCurvePath2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    if (samplePoints2.length < 2) {
+  function drawDots(samplePoints) {
+    const sampleCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    if (samplePoints.length < 2) {
       console.warn("Not enough points to draw lines");
-      return sampleCurvePath2;
+      return sampleCurvePath;
     }
     let pathData = "";
-    for (let i = 1; i < samplePoints2.length; i++) {
-      pathData += ` M ${samplePoints2[i].real} ${samplePoints2[i].imag} v .01`;
+    for (let i = 1; i < samplePoints.length; i++) {
+      pathData += ` M ${samplePoints[i].real} ${samplePoints[i].imag} v .01`;
     }
-    sampleCurvePath2.setAttribute("id", "outlinePath");
-    sampleCurvePath2.setAttribute("fill", "none");
-    sampleCurvePath2.setAttribute("stroke", "black");
-    sampleCurvePath2.setAttribute("stroke-width", ".5 px");
-    sampleCurvePath2.setAttribute("vector-effect", "non-scaling-stroke");
-    sampleCurvePath2.setAttribute("d", `${pathData}`);
-    return sampleCurvePath2;
+    sampleCurvePath.setAttribute("id", "outlinePath");
+    sampleCurvePath.setAttribute("fill", "none");
+    sampleCurvePath.setAttribute("stroke", "black");
+    sampleCurvePath.setAttribute("stroke-width", ".5 px");
+    sampleCurvePath.setAttribute("vector-effect", "non-scaling-stroke");
+    sampleCurvePath.setAttribute("d", `${pathData}`);
+    return sampleCurvePath;
   }
   function updateHeadline() {
-    headline.innerHTML = headline.innerHTML = `Mandelbrot-outline at depth: ${iterationDepth} is transformed by discrete-Fourier-transformation and transformed back the first ${inversionAccuracy} elements of the transformed values`;
+    headline.innerHTML = headline.innerHTML = `Providing Audiosamples of the Mandelbrot-set at iteration-depth: ${iterationDepth} is transformed by discrete-Fourier-transformation and transformed back the first ${inversionAccuracy} elements of the transformed values`;
   }
 })();
 //# sourceMappingURL=index.js.map

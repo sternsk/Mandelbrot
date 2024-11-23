@@ -20,11 +20,11 @@ export let xMin = -2, xMax = xMin + width
 export let yMin = -1.2, yMax = yMin + height
 export let animationRequest = true
 
-let samplePoints: Complex[] = []
-let sampleCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path")
-let dftPoints: Complex[] = []
+let rawSample: Complex[] = []
+let rawCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path")
+let dftsample: Complex[] = []
 let dftPath = document.createElementNS("http://www.w3.org/2000/svg", "path") 
-let idftPoints: Complex[] = []
+let idftSample: Complex[] = []
 let idftPath = document.createElementNS("http://www.w3.org/2000/svg", "path")
 let inversionAccuracy = 169
 
@@ -32,11 +32,11 @@ const headline: HTMLHeadElement = document.createElement("h1")
 updateHeadline()
 
 // there is the constructed mandelbrot line in the left window
-export const sampleCurveSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
-sampleCurveSvg.setAttribute("id", "sampleCurveSvg")
-sampleCurveSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
-sampleCurveSvg.setAttribute("width", `${overviewSvgWidth}px`)
-sampleCurveSvg.setAttribute("height", `${overviewSvgHeight}px`)
+export const rawsampleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+rawsampleSvg.setAttribute("id", "sampleCurveSvg")
+rawsampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
+rawsampleSvg.setAttribute("width", `${overviewSvgWidth}px`)
+rawsampleSvg.setAttribute("height", `${overviewSvgHeight}px`)
 
 // and there is the place where the transformed sampleCurve is plotted
 const dftSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
@@ -68,17 +68,17 @@ soundControlsContainer.style.border = "1px solid black"
 soundControlsContainer.style.padding = "10px"
 
 
-samplePoints = calcMandelbrotOutline()
+rawSample = mirrorX(calcMandelbrotOutline())
 
-sampleCurvePath = drawLines(mirrorX(samplePoints))
-sampleCurveSvg.appendChild(sampleCurvePath)
+rawCurvePath = drawLines(rawSample)
+rawsampleSvg.appendChild(rawCurvePath)
 
-dftPoints = dft(samplePoints)
-dftPath = drawLines(dftPoints)
+dftsample = dft(rawSample)
+dftPath = drawLines(dftsample)
 dftSvg.appendChild(dftPath)
 
-idftPoints = idft(dftPoints, inversionAccuracy)
-idftPath = drawLines(idftPoints)
+idftSample = idft(dftsample, inversionAccuracy)
+idftPath = drawLines(idftSample)
 idftSvg.appendChild(idftPath)
 
 const soundButton = document.createElement("button")
@@ -95,13 +95,21 @@ soundButton.addEventListener("click", ()=>{
     }
     if(!isPlaying){
         soundButton.textContent = "stop sound"
-        const sample = idftPoints
+        console.log(sampleSelector.value)
+        let sample
+        if (sampleSelector.value == "dft")
+            sample = dftsample
+        else if (sampleSelector.value == "idft")
+            sample = idftSample
+        else    
+            sample = rawSample
+        
         const wave = audioContext.createPeriodicWave(extractValuesAsFloat32Array(sample, "real"), 
                                                     extractValuesAsFloat32Array(sample, "imag")
                                                 )
         oscillator.setPeriodicWave(wave)
         oscillator.connect(audioContext.destination)
-       
+        oscillator.frequency.value = parseInt(frequencySlider.value)
         oscillator.start()
     }
 
@@ -121,6 +129,42 @@ soundButton.addEventListener("click", ()=>{
     isPlaying = !isPlaying
 
 })
+
+// control of the frequency
+const frequencySliderLabel = document.createElement("label")
+frequencySliderLabel.setAttribute("for", "frequencySlider")
+frequencySliderLabel.innerHTML = " frequency: "
+const frequencySlider = document.createElement("input")
+frequencySlider.id = "frequencySlider"
+frequencySlider.type = "range"
+frequencySlider.min = "1"
+frequencySlider.max = "440"
+frequencySlider.value = "1"
+
+frequencySlider.addEventListener("input", (event) => {
+    const frequency = (event.target as HTMLInputElement).valueAsNumber;
+    if(oscillator)
+        oscillator.frequency.value = frequency; 
+  });
+
+//select the sample to play
+const sampleSelector = document.createElement("select")
+const selectRawSample = document.createElement("option")
+const selectDFT = document.createElement("option")
+const selectIDFT = document.createElement("option")
+selectRawSample.setAttribute("value", "RawSample")
+selectDFT.setAttribute("value", "dft")
+selectIDFT.setAttribute("value", "idft")
+selectRawSample.textContent = "RawSample"
+selectDFT.textContent = "Fourier-transformed Data"
+selectIDFT.textContent = "retransformed Fourier Data"
+sampleSelector.appendChild(selectRawSample)
+sampleSelector.appendChild(selectDFT)
+sampleSelector.appendChild(selectIDFT)
+sampleSelector.addEventListener("change", ()=>{
+
+})
+
 
 // control-element for the iteration-depth
 const iterationDepthSliderLabel = document.createElement("label")
@@ -142,20 +186,23 @@ const inversionAccuracySlider = document.createElement("input")
 inversionAccuracySlider.id = "sampleAmountSlider"
 inversionAccuracySlider.type = "range"
 inversionAccuracySlider.min = "1"
-inversionAccuracySlider.max = `${samplePoints.length}`
+inversionAccuracySlider.max = `${rawSample.length}`
 inversionAccuracySlider.step = "1"
 inversionAccuracySlider.value = `${inversionAccuracy}`
 
 soundControlsContainer.appendChild(soundButton)
+soundControlsContainer.appendChild(frequencySliderLabel)
+soundControlsContainer.appendChild(frequencySlider)
+soundControlsContainer.appendChild(sampleSelector)
 
 viewControlsContainer.appendChild(iterationDepthSliderLabel)
 viewControlsContainer.appendChild(iterationDepthSlider)
 viewControlsContainer.appendChild(inversionAccuracySliderLabel)
 viewControlsContainer.appendChild(inversionAccuracySlider)
 
-viewElementsContainer.appendChild(sampleCurveSvg)
+viewElementsContainer.appendChild(rawsampleSvg)
 viewElementsContainer.appendChild(dftSvg)
-viewElementsContainer.appendChild(idftSvg)
+
 
 wrapper?.appendChild(headline)
 wrapper?.appendChild(soundControlsContainer)
@@ -166,66 +213,68 @@ iterationDepthSlider.addEventListener("input", function(event){
     iterationDepth = parseInt(iterationDepthSlider.value)
     updateHeadline()
 
-    samplePoints = calcMandelbrotOutline()
-    sampleCurvePath = drawLines(mirrorX(samplePoints))
-    sampleCurveSvg.innerHTML = ""
-    sampleCurveSvg.appendChild(sampleCurvePath)
+    rawSample = mirrorX(calcMandelbrotOutline())
+    rawCurvePath = drawLines(mirrorX(rawSample))
+    rawsampleSvg.innerHTML = ""
+    rawsampleSvg.appendChild(rawCurvePath)
 
-    inversionAccuracySlider.max = samplePoints.length.toString()
+    inversionAccuracySlider.max = rawSample.length.toString()
 
-    dftPoints = dft(samplePoints)
+    dftsample = dft(rawSample)
     dftSvg.innerHTML = ""
-    dftSvg.appendChild(drawLines(dftPoints))
+    dftSvg.appendChild(drawLines(dftsample))
 
     idftSvg.innerHTML = ""
-    idftSvg.appendChild(drawDots(idft(dftPoints, inversionAccuracy)))
+    idftSvg.appendChild(drawDots(idft(dftsample, inversionAccuracy)))
 })
 
 inversionAccuracySlider.addEventListener("input", function(){
     inversionAccuracy = parseFloat(inversionAccuracySlider.value)
     updateHeadline()
 
-    idftPath = drawDots(idft(dftPoints, inversionAccuracy))
+    idftPath = drawDots(idft(dftsample, inversionAccuracy))
     idftSvg.innerHTML = ""
     idftSvg.appendChild(idftPath)
     
 })
 
-sampleCurveSvg.addEventListener("mouseleave", () => {
+
+
+rawsampleSvg.addEventListener("mouseleave", () => {
     mousedown = false
 })
 
 let xOffset: number
 let yOffset: number
 let mousedown = false
-sampleCurveSvg.addEventListener("mousedown", (event) =>{
+rawsampleSvg.addEventListener("mousedown", (event) =>{
     mousedown = true
-    const coords = getSvgCoords(sampleCurveSvg, event);
+    const coords = getSvgCoords(rawsampleSvg, event);
     xOffset = coords.x;
     yOffset = coords.y;
 })
 
-sampleCurveSvg.addEventListener("mousemove", (event) =>{
+rawsampleSvg.addEventListener("mousemove", (event) =>{
     if(!mousedown)
         return
-    const coords = getSvgCoords(sampleCurveSvg, event);
+    const coords = getSvgCoords(rawsampleSvg, event);
     xMin += xOffset - coords.x
     yMin += yOffset - coords.y
-    sampleCurveSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
+    rawsampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
     
 })
-sampleCurveSvg.addEventListener("mouseup", ()=>{
+rawsampleSvg.addEventListener("mouseup", ()=>{
     mousedown = false
-    drawLines(samplePoints)
+    drawLines(rawSample)
 })
 
-sampleCurveSvg.addEventListener("wheel", (event) =>{
+rawsampleSvg.addEventListener("wheel", (event) =>{
     
     let deltaY = event.deltaY
-    const clientWidth = sampleCurveSvg.getBoundingClientRect().width
-    const mouseX = event.x - sampleCurveSvg.getBoundingClientRect().x
-    const clientHeight = sampleCurveSvg.getBoundingClientRect().height
-    const mouseY = event.y - sampleCurveSvg.getBoundingClientRect().y
+    const clientWidth = rawsampleSvg.getBoundingClientRect().width
+    const mouseX = event.x - rawsampleSvg.getBoundingClientRect().x
+    const clientHeight = rawsampleSvg.getBoundingClientRect().height
+    const mouseY = event.y - rawsampleSvg.getBoundingClientRect().y
 
     if(Math.abs(deltaY) < 100){
         if(deltaY <= 0)
@@ -243,7 +292,7 @@ sampleCurveSvg.addEventListener("wheel", (event) =>{
     yMin -=(height - oldHeight) * mouseY / clientHeight 
     yMax = yMin + height
 
-    sampleCurveSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
+    rawsampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
     
 })
 idftSvg.addEventListener("mousedown", (event) =>{
@@ -338,6 +387,9 @@ dftSvg.addEventListener("wheel", (event) =>{
     dftSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
     
 })
+
+
+// Outsource to library
 // Helper to get SVG coordinates
 function getSvgCoords(svgElement: SVGSVGElement, event: MouseEvent) {
     const point = svgElement.createSVGPoint();
@@ -421,5 +473,5 @@ function drawExtrapolatedCurve(points: {index: number, value: number}[]): SVGPat
 }
 
 function updateHeadline(){
-    headline.innerHTML = headline.innerHTML = `Mandelbrot-outline at depth: ${iterationDepth} is transformed by discrete-Fourier-transformation and transformed back the first ${inversionAccuracy} elements of the transformed values`
+    headline.innerHTML = headline.innerHTML = `Providing Audiosamples of the Mandelbrot-set at iteration-depth: ${iterationDepth} is transformed by discrete-Fourier-transformation and transformed back the first ${inversionAccuracy} elements of the transformed values`
 }

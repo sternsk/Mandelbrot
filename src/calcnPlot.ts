@@ -1,9 +1,9 @@
-import { sampleCurveSvg, xMax, xMin, yMax, yMin, iterationDepth, overviewSvgWidth, overviewSvgHeight} from "src";
+import { rawsampleSvg, xMax, xMin, yMax, yMin, iterationDepth, overviewSvgWidth, overviewSvgHeight} from "src";
 
 export class Mandelbrot{
     
-    width:number = sampleCurveSvg.getBBox().width;
-    height:number = sampleCurveSvg.getBBox().height;
+    width:number = rawsampleSvg.getBBox().width;
+    height:number = rawsampleSvg.getBBox().height;
    
     boundaryPoints: {real:number, imag: number}[]  = []
 
@@ -66,7 +66,7 @@ export class Mandelbrot{
         cloudPath.setAttribute("stroke-width", `${sampleHeight}`)
         cloudPath.setAttribute("id", "cloudPath")
         //cloudPath.setAttribute("vector-effect", `non-scaling-stroke`)
-        sampleCurveSvg.insertBefore(cloudPath, outlinePath)
+        rawsampleSvg.insertBefore(cloudPath, outlinePath)
         
     
         let pathData = `M${this.boundaryPoints[0].real} ${this.boundaryPoints[0].imag} v${sampleWidth}`
