@@ -46,7 +46,7 @@ dftSvg.setAttribute("height", `${dftSvgHeight}`)
 dftSvg.setAttribute("viewBox", "-1 -1 2 2")
 
 // there is the reconstructed Fourier-analysed curve in the right window (Inverse Discrete Fourier-Transformation)
-export const idftSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+const idftSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
 idftSvg.setAttribute("id", "IDFTSvg")
 idftSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} 4`)
 idftSvg.setAttribute("width", `${overviewSvgWidth}px`)
@@ -95,16 +95,27 @@ soundButton.addEventListener("click", ()=>{
     }
     if(!isPlaying){
         soundButton.textContent = "stop sound"
-        const sample = samplePoints
+        const sample = idftPoints
         const wave = audioContext.createPeriodicWave(extractValuesAsFloat32Array(sample, "real"), 
                                                     extractValuesAsFloat32Array(sample, "imag")
                                                 )
         oscillator.setPeriodicWave(wave)
-        
+        oscillator.connect(audioContext.destination)
+       
+        oscillator.start()
     }
 
     if(isPlaying){
-        stopSound()
+        if (oscillator) {
+            oscillator.stop();
+            oscillator.disconnect();
+            oscillator = null;
+        }
+    
+        if (audioContext) {
+            audioContext.close();
+            audioContext = null;
+        }
         soundButton.textContent = "oscillate boundary points"
     }
     isPlaying = !isPlaying
@@ -134,6 +145,8 @@ inversionAccuracySlider.min = "1"
 inversionAccuracySlider.max = `${samplePoints.length}`
 inversionAccuracySlider.step = "1"
 inversionAccuracySlider.value = `${inversionAccuracy}`
+
+soundControlsContainer.appendChild(soundButton)
 
 viewControlsContainer.appendChild(iterationDepthSliderLabel)
 viewControlsContainer.appendChild(iterationDepthSlider)

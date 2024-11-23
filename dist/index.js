@@ -117,25 +117,12 @@
   function extractValuesAsFloat32Array(points, part) {
     return new Float32Array(points.map((complex) => complex[part]));
   }
-  var audioContext = null;
-  var oscillator = null;
-  function stopSound() {
-    if (oscillator) {
-      oscillator.stop();
-      oscillator.disconnect();
-      oscillator = null;
-    }
-    if (audioContext) {
-      audioContext.close();
-      audioContext = null;
-    }
-  }
 
   // src/index.ts
   console.log("ver 2219");
   var wrapper = document.getElementById("wrapper");
-  var audioContext2 = null;
-  var oscillator2 = null;
+  var audioContext = null;
+  var oscillator = null;
   var overviewSvgWidth = 480;
   var overviewSvgHeight = 420;
   var dftSvgWidth = 480;
@@ -198,23 +185,33 @@
   soundButton.style.width = "200px";
   var isPlaying = false;
   soundButton.addEventListener("click", () => {
-    if (!audioContext2) {
-      audioContext2 = new AudioContext();
+    if (!audioContext) {
+      audioContext = new AudioContext();
     }
-    if (!oscillator2) {
-      oscillator2 = audioContext2.createOscillator();
+    if (!oscillator) {
+      oscillator = audioContext.createOscillator();
     }
     if (!isPlaying) {
       soundButton.textContent = "stop sound";
-      const sample = samplePoints;
-      const wave = audioContext2.createPeriodicWave(
+      const sample = idftPoints;
+      const wave = audioContext.createPeriodicWave(
         extractValuesAsFloat32Array(sample, "real"),
         extractValuesAsFloat32Array(sample, "imag")
       );
-      oscillator2.setPeriodicWave(wave);
+      oscillator.setPeriodicWave(wave);
+      oscillator.connect(audioContext.destination);
+      oscillator.start();
     }
     if (isPlaying) {
-      stopSound();
+      if (oscillator) {
+        oscillator.stop();
+        oscillator.disconnect();
+        oscillator = null;
+      }
+      if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+      }
       soundButton.textContent = "oscillate boundary points";
     }
     isPlaying = !isPlaying;
@@ -239,6 +236,7 @@
   inversionAccuracySlider.max = `${samplePoints.length}`;
   inversionAccuracySlider.step = "1";
   inversionAccuracySlider.value = `${inversionAccuracy}`;
+  soundControlsContainer.appendChild(soundButton);
   viewControlsContainer.appendChild(iterationDepthSliderLabel);
   viewControlsContainer.appendChild(iterationDepthSlider);
   viewControlsContainer.appendChild(inversionAccuracySliderLabel);
