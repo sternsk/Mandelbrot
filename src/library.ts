@@ -52,15 +52,22 @@ export function idft(coefficients: Complex[], N: number): Complex[] {
   return result;
 }
 
-export function extrapolate(
+export function extract(
   points: {real: number, imag: number}[], 
   part: "real" | "imag"
-): {index: number, value: number}[]{
+): {index: number, value: number}[] {
       return points.map((complex,index)=>({
           index,
           value: complex[part]
 
       }))
+  }
+
+  export function extractValuesAsFloat32Array(
+    points: { real: number; imag: number }[],
+    part: "real" | "imag"
+  ): Float32Array {
+    return new Float32Array(points.map((complex) => complex[part]));
   }
 
 let audioContext: AudioContext | null = null;

@@ -114,6 +114,9 @@
     }
     return result;
   }
+  function extractValuesAsFloat32Array(points, part) {
+    return new Float32Array(points.map((complex) => complex[part]));
+  }
   var audioContext = null;
   var oscillator = null;
   function stopSound() {
@@ -131,7 +134,7 @@
   // src/index.ts
   console.log("ver 2219");
   var wrapper = document.getElementById("wrapper");
-  var audioContext2;
+  var audioContext2 = null;
   var overviewSvgWidth = 480;
   var overviewSvgHeight = 420;
   var dftSvgWidth = 480;
@@ -192,13 +195,18 @@
   var soundButton = document.createElement("button");
   soundButton.innerHTML = "oscillate boundary points";
   soundButton.style.width = "200px";
-  if (!audioContext2) {
-    audioContext2 = new AudioContext();
-  }
   var isPlaying = false;
   soundButton.addEventListener("click", () => {
+    if (!audioContext2) {
+      audioContext2 = new AudioContext();
+    }
     if (!isPlaying) {
       soundButton.textContent = "stop sound";
+      const sample = samplePoints;
+      const wave = audioContext2.createPeriodicWave(
+        extractValuesAsFloat32Array(sample, "real"),
+        extractValuesAsFloat32Array(sample, "imag")
+      );
     }
     if (isPlaying) {
       stopSound();

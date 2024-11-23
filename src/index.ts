@@ -2,10 +2,11 @@
 console.log("ver 2219")
 
 import { calcMandelbrotOutline, mirrorX} from "./calcMandelbrotOutline.js";
-import { Complex, dft, idft, createOscillatorFromWaveform, stopSound, oscillator} from "./library.js";
+import { Complex, dft, idft, extractValuesAsFloat32Array, createOscillatorFromWaveform, stopSound} from "./library.js";
 
 const wrapper = document.getElementById("wrapper")
-let audioContext: AudioContext | null
+let audioContext: AudioContext | null = null
+let oscillator: OscillatorNode | null = null
 
 export const overviewSvgWidth =480
 export const overviewSvgHeight = 420
@@ -83,15 +84,21 @@ idftSvg.appendChild(idftPath)
 const soundButton = document.createElement("button")
 soundButton.innerHTML = "oscillate boundary points"
 soundButton.style.width = "200px"
-if(!audioContext){
-    audioContext = new AudioContext()
-}
 let isPlaying = false
+
 soundButton.addEventListener("click", ()=>{
-    
+    if(!audioContext){
+        audioContext = new AudioContext()
+    }
     if(!isPlaying){
         soundButton.textContent = "stop sound"
+        const sample = samplePoints
+        const wave = audioContext.createPeriodicWave(extractValuesAsFloat32Array(sample, "real"), 
+                                                    extractValuesAsFloat32Array(sample, "imag")
+                                                )
+        
     }
+
     if(isPlaying){
         stopSound()
         soundButton.textContent = "oscillate boundary points"
