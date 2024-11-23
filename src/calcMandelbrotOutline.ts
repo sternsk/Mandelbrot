@@ -1,32 +1,14 @@
-import { iterationDepth, spectraSvg, animationRequest } from "src"
 
-export let boundaryPoints: {real: number, imag:number}[] = []
+import { Complex } from "./library"
+import { iterationDepth } from "src"
 
-let allSteps: {startPoint: {
-                    real: number, 
-                    imag: number}, 
-                endPoint: {
-                    real: number, 
-                    imag: number}, 
-                color: string}[]= 
-                []
+let boundaryPoints: {real: number, imag:number}[] = []
 
-let done = false
-const actualSample = document.createElementNS("http://www.w3.org/2000/svg", "line")
 
-export function calcMandelbrotOutline(){
-    //initialize spectraSvg
-    done = false
-    allSteps = []
-    spectraSvg.innerHTML = ""
 
-    const begin = Date.now()
+export function calcMandelbrotOutline(): Complex[]{
     
-    actualSample.setAttribute("vector-effect", "non-scaling-stroke")
-    actualSample.setAttribute("stroke-width", "1px")    
-    actualSample.setAttribute("id", "actualSample")
-    spectraSvg.appendChild(actualSample)
-
+    const begin = Date.now()
     let duration: number
 
     boundaryPoints=[]
@@ -47,10 +29,9 @@ export function calcMandelbrotOutline(){
     // then move upwards from here on
     directionVector = {real: 0, imag: 1}
 
-    //move around for a reasonable amount
+    //move around half a time
     while (actualPoint.imag >= 0){
-    //for (let i = 0; i  < 1500; i++) {
-       
+    
         // test if actualPoint + directionVector/2 is inside the Mandelbrot
         // if(mandelbrot(add(actualPoint, scale(directionVector, sampleLength/2)))){
         //     // adjust by rotating the directionvector away from the set
@@ -61,16 +42,12 @@ export function calcMandelbrotOutline(){
             directionVector = rotate(directionVector, .5 * sampleAngle)
                 
             while (mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))){
-                
-                const endPoint = add(actualPoint, scale(directionVector, sampleLength))
-                allSteps.push({startPoint: actualPoint, endPoint, color: "brown"})
-                
+           
                 // adjust by rotating the directionvector away from the set
                 directionVector = rotate(directionVector, .5 * sampleAngle)
                     
             }
             const endpoint = add(actualPoint, scale(directionVector, sampleLength))
-            allSteps.push({startPoint: actualPoint, endPoint: endpoint, color: "red"})
             actualPoint = endpoint
             
             boundaryPoints.push(actualPoint)
@@ -87,8 +64,6 @@ export function calcMandelbrotOutline(){
                 directionVector = rotate(directionVector, 2*sampleAngle)
             }
             while(!mandelbrot(add(actualPoint, scale(directionVector, sampleLength))))    {
-                const endPoint = add(actualPoint, scale(directionVector, sampleLength))
-                allSteps.push({startPoint: actualPoint, endPoint, color: "blue"})
                 
                 //rotate the other way around towards the set
                 directionVector = rotate(directionVector, -.5*sampleAngle)
@@ -97,7 +72,6 @@ export function calcMandelbrotOutline(){
             directionVector = rotate(directionVector, .5*sampleAngle)
 
             const endpoint = add(actualPoint, scale(directionVector, sampleLength))
-            allSteps.push({startPoint: actualPoint, endPoint: endpoint, color: "red"})
 
             actualPoint = endpoint
             boundaryPoints.push(actualPoint)
@@ -105,58 +79,22 @@ export function calcMandelbrotOutline(){
         }
     
     }
-    done = true
-    if(animationRequest)
-        animateOutline()
-    
         
     console.log("boundaryPoints.length: "+boundaryPoints.length)
     duration = Date.now() - begin
     console.log(`sampling duration: ${duration} ms`)
+
+    return boundaryPoints
 }
 
-let currentAnimation: NodeJS.Timeout | null = null; // Speichert das aktuelle Intervall
-
-function animateOutline(){
-    if(done){
-        let i = 0
-        if (currentAnimation !== null) {
-            clearInterval(currentAnimation);
-            currentAnimation = null;
-            spectraSvg.innerHTML = ""
+export function mirrorX(samplePoints: Complex[]): Complex[]{
+    const arrayLength = samplePoints.length
+    const mirroredPoints = [...samplePoints]
+        for ( let index = arrayLength - 2; index >= 0; index--){
+            const reversedPoint = {real: samplePoints[index].real, imag: -samplePoints[index].imag}
+            mirroredPoints.push(reversedPoint)
         }
-        
-        currentAnimation = setInterval(() =>{
-            
-            if (i >= allSteps.length || !done) {
-                clearInterval(currentAnimation!); // Intervall beenden
-                console.log("animation restarted")
-                return;
-            }
-
-            const startPoint = allSteps[i].startPoint
-            const endPoint = allSteps[i].endPoint
-            const color = allSteps[i].color
-            
-            actualSample.setAttribute("x1", `${startPoint.real}`)
-            actualSample.setAttribute("y1", `${startPoint.imag}`)
-            actualSample.setAttribute("x2", `${endPoint.real}`)
-            actualSample.setAttribute("y2", `${endPoint.imag}`)
-            actualSample.setAttribute("stroke", `${color}`)
-
-            // spectraSvg.setAttribute("viewBox", `${startPoint.real - .05} 
-            //                                     ${startPoint.imag  - .05} 
-            //                                     ${endPoint.real - startPoint.real + .1}
-            //                                     ${endPoint.imag - startPoint.imag + .1}`)
-
-            const calculatedSample = actualSample.cloneNode(false) as SVGLineElement
-            calculatedSample.setAttribute("id", `calculatedSample ${i}`)
-            spectraSvg.appendChild(calculatedSample)
-
-            
-            i++
-        }, 1)
-    }
+        return mirroredPoints
 }
 
 function rotate(vector: {real: number, imag: number}, rotationAngle: number): {real: number, imag: number}{

@@ -1,4 +1,57 @@
-import { frequencySlider } from "src";
+export interface Complex{
+  real: number
+  imag: number
+}
+
+// Discrete Fourier-Transformation
+export function dft(data: Complex[]): Complex[] {
+  const N = data.length;
+  const result: Complex[] = [];
+
+  for (let k = 0; k < N; k++) {
+    let sum: Complex = { real: 0, imag: 0 };
+
+    for (let n = 0; n < N; n++) {
+      const angle = (2 * Math.PI * k * n) / N;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+
+      sum.real += data[n].real * cos + data[n].imag * sin;
+      sum.imag += data[n].imag * cos - data[n].real * sin;
+    }
+
+    // Amplituden normalisieren
+    sum.real /= N;
+    sum.imag /= N;
+
+    result.push(sum);
+  }
+
+  return result;
+}
+
+// inverse discrete fourier transformation
+export function idft(coefficients: Complex[], N: number): Complex[] {
+  const result: Complex[] = [];
+
+  for (let n = 0; n < N; n++) {
+    let sum: Complex = { real: 0, imag: 0 };
+
+    for (let k = 0; k < coefficients.length; k++) {
+      const angle = (2 * Math.PI * k * n) / N;
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+
+      sum.real += coefficients[k].real * cos - coefficients[k].imag * sin;
+      sum.imag += coefficients[k].real * sin + coefficients[k].imag * cos;
+    }
+
+    result.push(sum);
+  }
+
+  return result;
+}
+
 
 let audioContext: AudioContext | null = null;
 export let oscillator: OscillatorNode | null = null;
@@ -7,7 +60,7 @@ export let oscillator: OscillatorNode | null = null;
  * Create an oscillator from a custom waveform.
  * @param data - Array of objects with `real` and `imag` properties defining the waveform.
  */
-export async function createOscillatorFromWaveform(data: { real: number; imag: number }[]) {
+export async function createOscillatorFromWaveform(frequency: number, data: { real: number; imag: number }[]) {
     if (!audioContext) {
         audioContext = new AudioContext();
     }
@@ -25,7 +78,7 @@ export async function createOscillatorFromWaveform(data: { real: number; imag: n
     oscillator.connect(audioContext.destination);
 
     // Set frequency
-    oscillator.frequency.value = parseFloat(frequencySlider.value)
+    oscillator.frequency.value = frequency
 
     // Start the oscillator
     oscillator.start();

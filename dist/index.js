@@ -1,43 +1,9 @@
 "use strict";
 (() => {
-  var __defProp = Object.defineProperty;
-  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-  var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-  var __async = (__this, __arguments, generator) => {
-    return new Promise((resolve, reject) => {
-      var fulfilled = (value) => {
-        try {
-          step(generator.next(value));
-        } catch (e) {
-          reject(e);
-        }
-      };
-      var rejected = (value) => {
-        try {
-          step(generator.throw(value));
-        } catch (e) {
-          reject(e);
-        }
-      };
-      var step = (x) => x.done ? resolve(x.value) : Promise.resolve(x.value).then(fulfilled, rejected);
-      step((generator = generator.apply(__this, __arguments)).next());
-    });
-  };
-
   // src/calcMandelbrotOutline.ts
   var boundaryPoints = [];
-  var allSteps = [];
-  var done = false;
-  var actualSample = document.createElementNS("http://www.w3.org/2000/svg", "line");
   function calcMandelbrotOutline() {
-    done = false;
-    allSteps = [];
-    spectraSvg.innerHTML = "";
     const begin = Date.now();
-    actualSample.setAttribute("vector-effect", "non-scaling-stroke");
-    actualSample.setAttribute("stroke-width", "1px");
-    actualSample.setAttribute("id", "actualSample");
-    spectraSvg.appendChild(actualSample);
     let duration;
     boundaryPoints = [];
     const startPoint = { real: -2, imag: 0 };
@@ -52,12 +18,9 @@
       if (mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))) {
         directionVector = rotate(directionVector, 0.5 * sampleAngle);
         while (mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))) {
-          const endPoint = add(actualPoint, scale(directionVector, sampleLength));
-          allSteps.push({ startPoint: actualPoint, endPoint, color: "brown" });
           directionVector = rotate(directionVector, 0.5 * sampleAngle);
         }
         const endpoint = add(actualPoint, scale(directionVector, sampleLength));
-        allSteps.push({ startPoint: actualPoint, endPoint: endpoint, color: "red" });
         actualPoint = endpoint;
         boundaryPoints.push(actualPoint);
       }
@@ -67,53 +30,27 @@
           directionVector = rotate(directionVector, 2 * sampleAngle);
         }
         while (!mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))) {
-          const endPoint = add(actualPoint, scale(directionVector, sampleLength));
-          allSteps.push({ startPoint: actualPoint, endPoint, color: "blue" });
           directionVector = rotate(directionVector, -0.5 * sampleAngle);
         }
         directionVector = rotate(directionVector, 0.5 * sampleAngle);
         const endpoint = add(actualPoint, scale(directionVector, sampleLength));
-        allSteps.push({ startPoint: actualPoint, endPoint: endpoint, color: "red" });
         actualPoint = endpoint;
         boundaryPoints.push(actualPoint);
       }
     }
-    done = true;
-    if (animationRequest)
-      animateOutline();
     console.log("boundaryPoints.length: " + boundaryPoints.length);
     duration = Date.now() - begin;
     console.log(`sampling duration: ${duration} ms`);
+    return boundaryPoints;
   }
-  var currentAnimation = null;
-  function animateOutline() {
-    if (done) {
-      let i = 0;
-      if (currentAnimation !== null) {
-        clearInterval(currentAnimation);
-        currentAnimation = null;
-        spectraSvg.innerHTML = "";
-      }
-      currentAnimation = setInterval(() => {
-        if (i >= allSteps.length || !done) {
-          clearInterval(currentAnimation);
-          console.log("animation restarted");
-          return;
-        }
-        const startPoint = allSteps[i].startPoint;
-        const endPoint = allSteps[i].endPoint;
-        const color = allSteps[i].color;
-        actualSample.setAttribute("x1", `${startPoint.real}`);
-        actualSample.setAttribute("y1", `${startPoint.imag}`);
-        actualSample.setAttribute("x2", `${endPoint.real}`);
-        actualSample.setAttribute("y2", `${endPoint.imag}`);
-        actualSample.setAttribute("stroke", `${color}`);
-        const calculatedSample = actualSample.cloneNode(false);
-        calculatedSample.setAttribute("id", `calculatedSample ${i}`);
-        spectraSvg.appendChild(calculatedSample);
-        i++;
-      }, 1);
+  function mirrorX(samplePoints2) {
+    const arrayLength = samplePoints2.length;
+    const mirroredPoints = [...samplePoints2];
+    for (let index = arrayLength - 2; index >= 0; index--) {
+      const reversedPoint = { real: samplePoints2[index].real, imag: -samplePoints2[index].imag };
+      mirroredPoints.push(reversedPoint);
     }
+    return mirroredPoints;
   }
   function rotate(vector, rotationAngle) {
     const originLength = Math.sqrt(Math.pow(vector.real, 2) + Math.pow(vector.imag, 2));
@@ -143,109 +80,48 @@
     return false;
   }
 
-  // src/calcnPlot.ts
-  var Mandelbrot = class {
-    constructor() {
-      __publicField(this, "width", overviewSvg.getBBox().width);
-      __publicField(this, "height", overviewSvg.getBBox().height);
-      __publicField(this, "boundaryPoints", []);
-    }
-    // Skalierungsfunktionen von Canvas-Koordinaten auf komplexe Zahlenebene
-    scaleX(x) {
-      return xMin + x / this.width * (xMax - xMin);
-    }
-    scaleY(y) {
-      return yMin + y / this.height * (yMax - yMin);
-    }
-    // Mandelbrot-Iteration
-    mandelbrot(viewPortCoordinate) {
-      const c = viewPortCoordinate;
-      let z = { real: 0, imag: 0 };
-      let iterations = 0;
-      while (iterations < iterationDepth && z.real * z.real + z.imag * z.imag <= 4) {
-        let realTemp = z.real * z.real - z.imag * z.imag + c.real;
-        z.imag = 2 * z.real * z.imag + c.imag;
-        z.real = realTemp;
-        iterations++;
-        if (iterations == iterationDepth && z.real * z.real + z.imag * z.imag > 3.5 && z.real * z.real + z.imag * z.imag <= 4) {
-          return viewPortCoordinate;
-        }
-      }
-    }
-    // Grenzlinie berechnen und plotten
-    drawCloud() {
-      var _a;
-      this.boundaryPoints = [];
-      const sampleWidth = (xMax - xMin) / overviewSvgWidth;
-      const sampleHeight = (yMax - yMin) / overviewSvgHeight;
-      for (let x = xMin; x < xMax; x += sampleWidth) {
-        for (let y = yMin; y < yMax; y += sampleHeight) {
-          const c = { real: x, imag: y };
-          const borderPoint = this.mandelbrot(c);
-          if (borderPoint)
-            this.boundaryPoints.push(borderPoint);
-        }
-      }
-      const outlinePath2 = document.getElementById("outlinePath");
-      const oldCloudPath = document.getElementById("cloudPath");
-      (_a = oldCloudPath == null ? void 0 : oldCloudPath.parentNode) == null ? void 0 : _a.removeChild(oldCloudPath);
-      const cloudPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      cloudPath.setAttribute("fill", "none");
-      cloudPath.setAttribute("stroke", "darkblue");
-      cloudPath.setAttribute("stroke-width", `${sampleHeight}`);
-      cloudPath.setAttribute("id", "cloudPath");
-      overviewSvg.insertBefore(cloudPath, outlinePath2);
-      let pathData = `M${this.boundaryPoints[0].real} ${this.boundaryPoints[0].imag} v${sampleWidth}`;
-      for (let i = 1; i < this.boundaryPoints.length; i++) {
-        pathData += `M ${this.boundaryPoints[i].real}${this.boundaryPoints[i].imag} v${sampleWidth}`;
-      }
-      cloudPath.setAttribute("d", `${pathData}`);
-    }
-  };
-
-  // src/extrapolate.ts
-  function extrapolate(points, part) {
-    return points.map((complex, index) => ({
-      index,
-      value: complex[part]
-    }));
-  }
-
   // src/library.ts
-  var audioContext = null;
-  var oscillator = null;
-  function createOscillatorFromWaveform(data) {
-    return __async(this, null, function* () {
-      if (!audioContext) {
-        audioContext = new AudioContext();
+  function dft(data) {
+    const N = data.length;
+    const result = [];
+    for (let k = 0; k < N; k++) {
+      let sum = { real: 0, imag: 0 };
+      for (let n = 0; n < N; n++) {
+        const angle = 2 * Math.PI * k * n / N;
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        sum.real += data[n].real * cos + data[n].imag * sin;
+        sum.imag += data[n].imag * cos - data[n].real * sin;
       }
-      oscillator = audioContext.createOscillator();
-      const realValues = new Float32Array(data.map((point) => point.real));
-      const imagValues = new Float32Array(data.map((point) => point.imag));
-      const wave = audioContext.createPeriodicWave(realValues, imagValues);
-      oscillator.setPeriodicWave(wave);
-      oscillator.connect(audioContext.destination);
-      oscillator.frequency.value = parseFloat(frequencySlider.value);
-      oscillator.start();
-    });
+      sum.real /= N;
+      sum.imag /= N;
+      result.push(sum);
+    }
+    return result;
   }
-  function stopSound() {
-    if (oscillator) {
-      oscillator.stop();
-      oscillator.disconnect();
-      oscillator = null;
+  function idft(coefficients, N) {
+    const result = [];
+    for (let n = 0; n < N; n++) {
+      let sum = { real: 0, imag: 0 };
+      for (let k = 0; k < coefficients.length; k++) {
+        const angle = 2 * Math.PI * k * n / N;
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        sum.real += coefficients[k].real * cos - coefficients[k].imag * sin;
+        sum.imag += coefficients[k].real * sin + coefficients[k].imag * cos;
+      }
+      result.push(sum);
     }
-    if (audioContext) {
-      audioContext.close();
-      audioContext = null;
-    }
+    return result;
   }
 
   // src/index.ts
-  console.log("ver 2104");
+  console.log("ver 2219");
   var wrapper = document.getElementById("wrapper");
   var overviewSvgWidth = 480;
   var overviewSvgHeight = 420;
+  var dftSvgWidth = 480;
+  var dftSvgHeight = 420;
   var width = 2.5;
   var height = width;
   var iterationDepth = 4;
@@ -254,21 +130,30 @@
   var yMin = -1.2;
   var yMax = yMin + height;
   var animationRequest = true;
+  var samplePoints = [];
+  var sampleCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  var dftPoints = [];
+  var dftPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  var idftPoints = [];
+  var idftPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  var inversionAccuracy = 169;
   var headline = document.createElement("h1");
-  headline.innerHTML = `View and oszillate the mandelbrot at depth: ${iterationDepth}`;
-  var overviewSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  overviewSvg.setAttribute("id", "mandelbrotSvg");
-  overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
-  overviewSvg.setAttribute("width", `${overviewSvgWidth}px`);
-  overviewSvg.setAttribute("height", `${overviewSvgHeight}px`);
-  var spectraSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  spectraSvg.setAttribute("id", "spectraSvg");
-  spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
-  spectraSvg.setAttribute("width", `${overviewSvgWidth}px`);
-  spectraSvg.setAttribute("height", `${overviewSvgHeight}px`);
-  if (document.documentElement.clientWidth < 1004) {
-    animationRequest = false;
-  }
+  updateHeadline();
+  var sampleCurveSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  sampleCurveSvg.setAttribute("id", "sampleCurveSvg");
+  sampleCurveSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+  sampleCurveSvg.setAttribute("width", `${overviewSvgWidth}px`);
+  sampleCurveSvg.setAttribute("height", `${overviewSvgHeight}px`);
+  var dftSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  dftSvg.setAttribute("id", "dftSvg");
+  dftSvg.setAttribute("width", `${dftSvgWidth}`);
+  dftSvg.setAttribute("height", `${dftSvgHeight}`);
+  dftSvg.setAttribute("viewBox", "-1 -1 2 2");
+  var idftSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  idftSvg.setAttribute("id", "IDFTSvg");
+  idftSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} 4`);
+  idftSvg.setAttribute("width", `${overviewSvgWidth}px`);
+  idftSvg.setAttribute("height", `${overviewSvgHeight}px`);
   var viewControlsContainer = document.createElement("div");
   viewControlsContainer.id = "viewControlsContainer";
   viewControlsContainer.style.border = "1px solid black";
@@ -281,191 +166,97 @@
   soundControlsContainer.id = "soundControlsContainer";
   soundControlsContainer.style.border = "1px solid black";
   soundControlsContainer.style.padding = "10px";
-  var xDataSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  var xDataSvgWidth = 200;
-  var xDataSvgHeight = 100;
-  xDataSvg.style.marginLeft = "5px";
-  xDataSvg.setAttribute("id", "xDataSvg");
-  xDataSvg.setAttribute("width", `${xDataSvgWidth}`);
-  xDataSvg.setAttribute("height", `${xDataSvgHeight}`);
-  var yDataSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  var yDataSvgWidth = 200;
-  var yDataSvgHeight = 100;
-  yDataSvg.style.marginLeft = "5px";
-  yDataSvg.setAttribute("id", "yDataSvg");
-  yDataSvg.setAttribute("width", `${yDataSvgWidth}`);
-  yDataSvg.setAttribute("height", `${yDataSvgHeight}`);
-  var outlinePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  overviewSvg.appendChild(outlinePath);
-  var iterationsSliderLabel = document.createElement("label");
-  iterationsSliderLabel.setAttribute("for", "iterationsSlider");
-  iterationsSliderLabel.innerHTML = "iterations: ";
-  var iterationsSlider = document.createElement("input");
-  iterationsSlider.id = "iterationsSlider";
-  iterationsSlider.type = "range";
-  iterationsSlider.min = "2";
-  iterationsSlider.max = "14";
-  iterationsSlider.step = "1";
-  iterationsSlider.value = `${iterationDepth}`;
-  var xMinSliderLabel = document.createElement("label");
-  xMinSliderLabel.setAttribute("for", "xMinSlider");
-  xMinSliderLabel.innerHTML = "x-move:";
-  var xMinSlider = document.createElement("input");
-  xMinSlider.id = "xMinSlider";
-  xMinSlider.type = "range";
-  xMinSlider.min = "-6";
-  xMinSlider.max = "2.0";
-  xMinSlider.step = ".1";
-  xMinSlider.value = `${xMin}`;
-  var yMinSliderLabel = document.createElement("label");
-  yMinSliderLabel.setAttribute("for", "yMinSlider");
-  yMinSliderLabel.innerHTML = "y-move:";
-  var yMinSlider = document.createElement("input");
-  yMinSlider.id = "yMinslider";
-  yMinSlider.type = "range";
-  yMinSlider.min = "-6";
-  yMinSlider.max = "2";
-  yMinSlider.step = ".1";
-  yMinSlider.value = `${yMin}`;
-  var zoomSliderLabel = document.createElement("label");
-  zoomSliderLabel.setAttribute("for", "zoomSlider");
-  zoomSliderLabel.innerHTML = "zoom: ";
-  var zoomSlider = document.createElement("input");
-  zoomSlider.id = "zoomSlider";
-  zoomSlider.type = "range";
-  zoomSlider.min = ".1";
-  zoomSlider.max = "4";
-  zoomSlider.step = ".1";
-  zoomSlider.value = `${width}`;
-  var oscillateButton = document.createElement("button");
-  oscillateButton.innerHTML = "oscillate boundary points";
-  oscillateButton.style.width = "200px";
-  var isPlaying = false;
-  oscillateButton.addEventListener("click", () => {
-    if (!isPlaying) {
-      createOscillatorFromWaveform(boundaryPoints);
-      oscillateButton.textContent = "stop sound";
-    }
-    if (isPlaying) {
-      stopSound();
-      oscillateButton.textContent = "oscillate boundary points";
-    }
-    isPlaying = !isPlaying;
-  });
-  var frequencySliderLabel = document.createElement("label");
-  frequencySliderLabel.setAttribute("for", "frequencySlider");
-  frequencySliderLabel.innerHTML = " frequency: ";
-  var frequencySlider = document.createElement("input");
-  frequencySlider.id = "frequencySlider";
-  frequencySlider.type = "range";
-  frequencySlider.min = "1";
-  frequencySlider.max = "440";
-  frequencySlider.value = "1";
-  frequencySlider.addEventListener("input", (event) => {
-    const frequency = event.target.valueAsNumber;
-    if (oscillator)
-      oscillator.frequency.value = frequency;
-  });
-  soundControlsContainer.appendChild(oscillateButton);
-  soundControlsContainer.appendChild(frequencySliderLabel);
-  soundControlsContainer.appendChild(frequencySlider);
-  viewControlsContainer.appendChild(iterationsSliderLabel);
-  viewControlsContainer.appendChild(iterationsSlider);
-  viewControlsContainer.appendChild(iterationsSlider);
-  viewControlsContainer.appendChild(xMinSliderLabel);
-  viewControlsContainer.appendChild(xMinSlider);
-  viewControlsContainer.appendChild(yMinSliderLabel);
-  viewControlsContainer.appendChild(yMinSlider);
-  viewControlsContainer.appendChild(zoomSliderLabel);
-  viewControlsContainer.appendChild(zoomSlider);
-  viewElementsContainer.appendChild(overviewSvg);
-  viewElementsContainer.appendChild(spectraSvg);
-  calcMandelbrotOutline();
-  drawLines();
-  var xDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "real"));
-  var yDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "imag"));
-  xDataSvg.appendChild(xDataLine);
-  yDataSvg.appendChild(yDataLine);
+  samplePoints = calcMandelbrotOutline();
+  sampleCurvePath = drawLines(mirrorX(samplePoints));
+  sampleCurveSvg.appendChild(sampleCurvePath);
+  dftPoints = dft(samplePoints);
+  dftPath = drawLines(dftPoints);
+  dftSvg.appendChild(dftPath);
+  idftPoints = idft(dftPoints, inversionAccuracy);
+  idftPath = drawLines(idftPoints);
+  idftSvg.appendChild(idftPath);
+  var iterationDepthSliderLabel = document.createElement("label");
+  iterationDepthSliderLabel.setAttribute("for", "iterationsSlider");
+  iterationDepthSliderLabel.innerHTML = "iterations: ";
+  var iterationDepthSlider = document.createElement("input");
+  iterationDepthSlider.id = "iterationsSlider";
+  iterationDepthSlider.type = "range";
+  iterationDepthSlider.min = "2";
+  iterationDepthSlider.max = "14";
+  iterationDepthSlider.step = "1";
+  iterationDepthSlider.value = `${iterationDepth}`;
+  var inversionAccuracySliderLabel = document.createElement("label");
+  inversionAccuracySliderLabel.setAttribute("for", "inversionAmountSlider");
+  inversionAccuracySliderLabel.innerHTML = "reversion accuracy: ";
+  var inversionAccuracySlider = document.createElement("input");
+  inversionAccuracySlider.id = "sampleAmountSlider";
+  inversionAccuracySlider.type = "range";
+  inversionAccuracySlider.min = "1";
+  inversionAccuracySlider.max = `${samplePoints.length}`;
+  inversionAccuracySlider.step = "1";
+  inversionAccuracySlider.value = `${inversionAccuracy}`;
+  viewControlsContainer.appendChild(iterationDepthSliderLabel);
+  viewControlsContainer.appendChild(iterationDepthSlider);
+  viewControlsContainer.appendChild(inversionAccuracySliderLabel);
+  viewControlsContainer.appendChild(inversionAccuracySlider);
+  viewElementsContainer.appendChild(sampleCurveSvg);
+  viewElementsContainer.appendChild(dftSvg);
+  viewElementsContainer.appendChild(idftSvg);
   wrapper == null ? void 0 : wrapper.appendChild(headline);
   wrapper == null ? void 0 : wrapper.appendChild(soundControlsContainer);
   wrapper == null ? void 0 : wrapper.appendChild(viewControlsContainer);
   wrapper == null ? void 0 : wrapper.appendChild(viewElementsContainer);
-  var mandelbrot2 = new Mandelbrot();
-  window.onload = () => {
-    mandelbrot2.drawCloud();
-  };
-  iterationsSlider.addEventListener("input", function(event) {
-    iterationDepth = parseInt(iterationsSlider.value);
-    headline.innerHTML = `Mandelbrot-Grenzlinie bei Iterationstiefe i = ${iterationDepth}`;
-    mandelbrot2.drawCloud();
-    calcMandelbrotOutline();
-    if (isPlaying) createOscillatorFromWaveform(boundaryPoints);
-    drawLines();
+  iterationDepthSlider.addEventListener("input", function(event) {
+    iterationDepth = parseInt(iterationDepthSlider.value);
+    updateHeadline();
+    samplePoints = calcMandelbrotOutline();
+    sampleCurvePath = drawLines(mirrorX(samplePoints));
+    sampleCurveSvg.innerHTML = "";
+    sampleCurveSvg.appendChild(sampleCurvePath);
+    inversionAccuracySlider.max = samplePoints.length.toString();
+    dftPoints = dft(samplePoints);
+    dftSvg.innerHTML = "";
+    dftSvg.appendChild(drawLines(dftPoints));
+    idftSvg.innerHTML = "";
+    idftSvg.appendChild(drawDots(idft(dftPoints, inversionAccuracy)));
   });
-  xMinSlider.addEventListener("input", function() {
-    xMin = parseFloat(xMinSlider.value);
-    xMax = xMin + width;
-    overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+  inversionAccuracySlider.addEventListener("input", function() {
+    inversionAccuracy = parseFloat(inversionAccuracySlider.value);
+    updateHeadline();
+    idftPath = drawDots(idft(dftPoints, inversionAccuracy));
+    idftSvg.innerHTML = "";
+    idftSvg.appendChild(idftPath);
   });
-  yMinSlider.addEventListener("input", function() {
-    yMin = parseFloat(yMinSlider.value);
-    yMax = yMin + height;
-    overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
-  });
-  zoomSlider.addEventListener("input", function() {
-    const oldWidth = width;
-    const oldHeight = height;
-    width = parseFloat(zoomSlider.value);
-    height = width;
-    xMin -= (width - oldWidth) / 2;
-    xMax = xMin + width;
-    yMin -= (height - oldHeight) / 2;
-    yMax = yMin + height;
-    overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
-    xMinSlider.step = (parseFloat(zoomSlider.value) / 40).toString();
-    yMinSlider.step = (parseFloat(zoomSlider.value) / 40).toString();
-    zoomSlider.step = zoomSlider.min;
-  });
-  zoomSlider.addEventListener("mouseup", () => {
-    mandelbrot2.drawCloud();
-    const sliderMinAttribute = zoomSlider.getAttribute("min");
-    let minValue;
-    if (sliderMinAttribute) {
-      minValue = parseFloat(sliderMinAttribute);
-      zoomSlider.min = `${minValue / 10}`;
-    }
-  });
-  overviewSvg.addEventListener("mouseleave", () => {
+  sampleCurveSvg.addEventListener("mouseleave", () => {
     mousedown = false;
   });
   var xOffset;
   var yOffset;
   var mousedown = false;
-  overviewSvg.addEventListener("mousedown", (event) => {
+  sampleCurveSvg.addEventListener("mousedown", (event) => {
     mousedown = true;
-    const coords = getSvgCoords(overviewSvg, event);
+    const coords = getSvgCoords(sampleCurveSvg, event);
     xOffset = coords.x;
     yOffset = coords.y;
   });
-  overviewSvg.addEventListener("mousemove", (event) => {
+  sampleCurveSvg.addEventListener("mousemove", (event) => {
     if (!mousedown)
       return;
-    const coords = getSvgCoords(overviewSvg, event);
+    const coords = getSvgCoords(sampleCurveSvg, event);
     xMin += xOffset - coords.x;
     yMin += yOffset - coords.y;
-    overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+    sampleCurveSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   });
-  overviewSvg.addEventListener("mouseup", () => {
+  sampleCurveSvg.addEventListener("mouseup", () => {
     mousedown = false;
-    mandelbrot2.drawCloud();
-    drawLines();
+    drawLines(samplePoints);
   });
-  overviewSvg.addEventListener("wheel", (event) => {
+  sampleCurveSvg.addEventListener("wheel", (event) => {
     let deltaY = event.deltaY;
-    const clientWidth = overviewSvg.getBoundingClientRect().width;
-    const mouseX = event.x - overviewSvg.getBoundingClientRect().x;
-    const clientHeight = overviewSvg.getBoundingClientRect().height;
-    const mouseY = event.y - overviewSvg.getBoundingClientRect().y;
+    const clientWidth = sampleCurveSvg.getBoundingClientRect().width;
+    const mouseX = event.x - sampleCurveSvg.getBoundingClientRect().x;
+    const clientHeight = sampleCurveSvg.getBoundingClientRect().height;
+    const mouseY = event.y - sampleCurveSvg.getBoundingClientRect().y;
     if (Math.abs(deltaY) < 100) {
       if (deltaY <= 0)
         deltaY -= 100;
@@ -480,30 +271,30 @@
     xMax = xMin + width;
     yMin -= (height - oldHeight) * mouseY / clientHeight;
     yMax = yMin + height;
-    overviewSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+    sampleCurveSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   });
-  spectraSvg.addEventListener("mousedown", (event) => {
+  idftSvg.addEventListener("mousedown", (event) => {
     mousedown = true;
-    const coords = getSvgCoords(spectraSvg, event);
+    const coords = getSvgCoords(idftSvg, event);
     xOffset = coords.x;
     yOffset = coords.y;
   });
-  spectraSvg.addEventListener("mousemove", (event) => {
+  idftSvg.addEventListener("mousemove", (event) => {
     if (!mousedown)
       return;
-    const coords = getSvgCoords(spectraSvg, event);
+    const coords = getSvgCoords(idftSvg, event);
     xMin += xOffset - coords.x;
     yMin += yOffset - coords.y;
-    spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+    idftSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   });
-  spectraSvg.addEventListener("mouseup", () => {
+  idftSvg.addEventListener("mouseup", () => {
     mousedown = false;
   });
-  spectraSvg.addEventListener("wheel", (event) => {
-    const clientWidth = spectraSvg.getBoundingClientRect().width;
-    const mouseX = event.x - spectraSvg.getBoundingClientRect().x;
-    const clientHeight = spectraSvg.getBoundingClientRect().height;
-    const mouseY = event.y - spectraSvg.getBoundingClientRect().y;
+  idftSvg.addEventListener("wheel", (event) => {
+    const clientWidth = idftSvg.getBoundingClientRect().width;
+    const mouseX = event.x - idftSvg.getBoundingClientRect().x;
+    const clientHeight = idftSvg.getBoundingClientRect().height;
+    const mouseY = event.y - idftSvg.getBoundingClientRect().y;
     let deltaY = event.deltaY;
     if (Math.abs(deltaY) < 100) {
       if (deltaY <= 0)
@@ -519,7 +310,46 @@
     xMax = xMin + width;
     yMin -= (height - oldHeight) * mouseY / clientHeight;
     yMax = yMin + height;
-    spectraSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+    idftSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+  });
+  dftSvg.addEventListener("mousedown", (event) => {
+    mousedown = true;
+    const coords = getSvgCoords(dftSvg, event);
+    xOffset = coords.x;
+    yOffset = coords.y;
+  });
+  dftSvg.addEventListener("mousemove", (event) => {
+    if (!mousedown)
+      return;
+    const coords = getSvgCoords(dftSvg, event);
+    xMin += xOffset - coords.x;
+    yMin += yOffset - coords.y;
+    dftSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+  });
+  dftSvg.addEventListener("mouseup", () => {
+    mousedown = false;
+  });
+  dftSvg.addEventListener("wheel", (event) => {
+    const clientWidth = dftSvg.getBoundingClientRect().width;
+    const mouseX = event.x - dftSvg.getBoundingClientRect().x;
+    const clientHeight = dftSvg.getBoundingClientRect().height;
+    const mouseY = event.y - dftSvg.getBoundingClientRect().y;
+    let deltaY = event.deltaY;
+    if (Math.abs(deltaY) < 100) {
+      if (deltaY <= 0)
+        deltaY -= 100;
+      else
+        deltaY += 100;
+    }
+    const oldWidth = width;
+    const oldHeight = height;
+    width += width * 10 / deltaY;
+    height = width;
+    xMin -= (width - oldWidth) * mouseX / clientWidth;
+    xMax = xMin + width;
+    yMin -= (height - oldHeight) * mouseY / clientHeight;
+    yMax = yMin + height;
+    dftSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   });
   function getSvgCoords(svgElement, event) {
     const point = svgElement.createSVGPoint();
@@ -528,43 +358,44 @@
     const svgCoords = point.matrixTransform(svgElement.getScreenCTM().inverse());
     return svgCoords;
   }
-  function drawLines() {
-    if (boundaryPoints.length < 2) {
+  function drawLines(samplePoints2) {
+    const sampleCurvePath2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    if (samplePoints2.length < 2) {
       console.warn("Not enough points to draw lines");
-      return;
+      return sampleCurvePath2;
     }
-    outlinePath.innerHTML = "";
-    let pathData = `M${boundaryPoints[0].real} ${boundaryPoints[0].imag}`;
-    for (let i = 1; i < boundaryPoints.length; i++) {
-      pathData += `L ${boundaryPoints[i].real} ${boundaryPoints[i].imag}`;
+    let pathData = `M${samplePoints2[0].real} ${samplePoints2[0].imag}`;
+    for (let i = 1; i < samplePoints2.length; i++) {
+      pathData += `L ${samplePoints2[i].real} ${samplePoints2[i].imag}`;
     }
-    outlinePath.setAttribute("id", "outlinePath");
-    outlinePath.setAttribute("fill", "none");
-    outlinePath.setAttribute("stroke", "black");
-    outlinePath.setAttribute("stroke-width", ".5 px");
-    outlinePath.setAttribute("vector-effect", "non-scaling-stroke");
-    outlinePath.setAttribute("d", `${pathData}`);
+    sampleCurvePath2.setAttribute("id", "outlinePath");
+    sampleCurvePath2.setAttribute("fill", "none");
+    sampleCurvePath2.setAttribute("stroke", "black");
+    sampleCurvePath2.setAttribute("stroke-width", ".5 px");
+    sampleCurvePath2.setAttribute("vector-effect", "non-scaling-stroke");
+    sampleCurvePath2.setAttribute("d", `${pathData}`);
+    return sampleCurvePath2;
   }
-  function drawExtrapolatedCurve(points) {
-    const width2 = xDataSvgWidth;
-    const height2 = xDataSvgHeight;
-    const xScale = width2 / (points.length - 1);
-    const yMin2 = Math.min(...points.map((p) => p.value));
-    const yMax2 = Math.max(...points.map((p) => p.value));
-    const yScale = height2 / (yMax2 - yMin2);
-    let pathData = `M 0 ${height2 - (points[0].value - yMin2) * yScale}`;
-    for (let j = 1; j < points.length; j++) {
-      const x = j * xScale;
-      const y = height2 - (points[j].value - yMin2) * yScale;
-      pathData += ` L ${x} ${y}`;
+  function drawDots(samplePoints2) {
+    const sampleCurvePath2 = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    if (samplePoints2.length < 2) {
+      console.warn("Not enough points to draw lines");
+      return sampleCurvePath2;
     }
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("id", "extrapolatedCurve");
-    path.setAttribute("d", pathData);
-    path.setAttribute("fill", "none");
-    path.setAttribute("stroke", "blue");
-    path.setAttribute("stroke-width", "2");
-    return path;
+    let pathData = "";
+    for (let i = 1; i < samplePoints2.length; i++) {
+      pathData += ` M ${samplePoints2[i].real} ${samplePoints2[i].imag} v .01`;
+    }
+    sampleCurvePath2.setAttribute("id", "outlinePath");
+    sampleCurvePath2.setAttribute("fill", "none");
+    sampleCurvePath2.setAttribute("stroke", "black");
+    sampleCurvePath2.setAttribute("stroke-width", ".5 px");
+    sampleCurvePath2.setAttribute("vector-effect", "non-scaling-stroke");
+    sampleCurvePath2.setAttribute("d", `${pathData}`);
+    return sampleCurvePath2;
+  }
+  function updateHeadline() {
+    headline.innerHTML = headline.innerHTML = `Mandelbrot-outline at depth: ${iterationDepth} is transformed by discrete-Fourier-transformation and transformed back the first ${inversionAccuracy} elements of the transformed values`;
   }
 })();
 //# sourceMappingURL=index.js.map

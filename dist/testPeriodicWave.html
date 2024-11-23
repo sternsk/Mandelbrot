@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visualisierung von PeriodicWave</title>
+</head>
+<body>
+  <canvas id="waveCanvas" width="800" height="400" style="border: 1px solid black;"></canvas>
+  <script>
+    // Web Audio API setup
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Fourier-Koeffizienten (Harmonische) für die Welle
+    const real = new Float32Array([0, 1, 0.5, 0.25]); // Beispiel-Amplituden
+    const imaginary = new Float32Array([0, 0, 0, 0]); // Keine Phasenverschiebung
+
+    // PeriodicWave erzeugen
+    const periodicWave = audioContext.createPeriodicWave(real, imaginary);
+
+    // Canvas setup
+    const canvas = document.getElementById('waveCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Funktion zur Rekonstruktion der Welle
+    function reconstructWave(real, imaginary, timeSamples, period) {
+      const wave = [];
+      const harmonics = real.length; // Anzahl der Harmonischen
+      for (let i = 0; i < timeSamples; i++) {
+        const t = (i / timeSamples) * period; // Zeitwert
+        let value = 0;
+        for (let n = 1; n < harmonics; n++) {
+          const angle = (2 * Math.PI * n * t) / period; // Winkel für die Harmonische
+          value += real[n] * Math.cos(angle) - imaginary[n] * Math.sin(angle);
+        }
+        wave.push(value);
+      }
+      return wave;
+    }
+
+    // Zeitparameter
+    const timeSamples = 800; // Anzahl der Abtastpunkte
+    const period = 1; // Periodendauer (1 Sekunde)
+
+    // Welle rekonstruieren
+    const wave = reconstructWave(real, imaginary, timeSamples, period);
+
+    // Zeichne die Welle
+    function drawWave(wave) {
+      const width = canvas.width;
+      const height = canvas.height;
+
+      ctx.clearRect(0, 0, width, height); // Canvas löschen
+
+      ctx.beginPath();
+      ctx.moveTo(0, height / 2);
+
+      for (let i = 0; i < wave.length; i++) {
+        const x = (i / wave.length) * width; // x-Koordinate
+        const y = height / 2 - (wave[i] * height) / 4; // y-Koordinate (skaliert)
+        ctx.lineTo(x, y);
+      }
+
+      ctx.strokeStyle = "blue";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Zeichne die rekonstruierte Welle
+    drawWave(wave);
+  </script>
+</body>
+</html>
