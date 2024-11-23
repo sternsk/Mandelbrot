@@ -19,13 +19,3 @@ export function extrapolateImag(points: {real: number, imag: number}[]): {i: num
     return restructuredPoints
 }
 
-export function extrapolate(
-    points: {real: number, imag: number}[], 
-    part: "real" | "imag"
-): {index: number, value: number}[]{
-        return points.map((complex,index)=>({
-            index,
-            value: complex[part]
-
-        }))
-    }

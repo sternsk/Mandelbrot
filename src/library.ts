@@ -52,6 +52,16 @@ export function idft(coefficients: Complex[], N: number): Complex[] {
   return result;
 }
 
+export function extrapolate(
+  points: {real: number, imag: number}[], 
+  part: "real" | "imag"
+): {index: number, value: number}[]{
+      return points.map((complex,index)=>({
+          index,
+          value: complex[part]
+
+      }))
+  }
 
 let audioContext: AudioContext | null = null;
 export let oscillator: OscillatorNode | null = null;
