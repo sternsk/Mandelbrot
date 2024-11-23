@@ -114,10 +114,24 @@
     }
     return result;
   }
+  var audioContext = null;
+  var oscillator = null;
+  function stopSound() {
+    if (oscillator) {
+      oscillator.stop();
+      oscillator.disconnect();
+      oscillator = null;
+    }
+    if (audioContext) {
+      audioContext.close();
+      audioContext = null;
+    }
+  }
 
   // src/index.ts
   console.log("ver 2219");
   var wrapper = document.getElementById("wrapper");
+  var audioContext2;
   var overviewSvgWidth = 480;
   var overviewSvgHeight = 420;
   var dftSvgWidth = 480;
@@ -175,6 +189,23 @@
   idftPoints = idft(dftPoints, inversionAccuracy);
   idftPath = drawLines(idftPoints);
   idftSvg.appendChild(idftPath);
+  var soundButton = document.createElement("button");
+  soundButton.innerHTML = "oscillate boundary points";
+  soundButton.style.width = "200px";
+  if (!audioContext2) {
+    audioContext2 = new AudioContext();
+  }
+  var isPlaying = false;
+  soundButton.addEventListener("click", () => {
+    if (!isPlaying) {
+      soundButton.textContent = "stop sound";
+    }
+    if (isPlaying) {
+      stopSound();
+      soundButton.textContent = "oscillate boundary points";
+    }
+    isPlaying = !isPlaying;
+  });
   var iterationDepthSliderLabel = document.createElement("label");
   iterationDepthSliderLabel.setAttribute("for", "iterationsSlider");
   iterationDepthSliderLabel.innerHTML = "iterations: ";

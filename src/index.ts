@@ -5,6 +5,7 @@ import { calcMandelbrotOutline, mirrorX} from "./calcMandelbrotOutline.js";
 import { Complex, dft, idft, createOscillatorFromWaveform, stopSound, oscillator} from "./library.js";
 
 const wrapper = document.getElementById("wrapper")
+let audioContext: AudioContext | null
 
 export const overviewSvgWidth =480
 export const overviewSvgHeight = 420
@@ -78,6 +79,26 @@ dftSvg.appendChild(dftPath)
 idftPoints = idft(dftPoints, inversionAccuracy)
 idftPath = drawLines(idftPoints)
 idftSvg.appendChild(idftPath)
+
+const soundButton = document.createElement("button")
+soundButton.innerHTML = "oscillate boundary points"
+soundButton.style.width = "200px"
+if(!audioContext){
+    audioContext = new AudioContext()
+}
+let isPlaying = false
+soundButton.addEventListener("click", ()=>{
+    
+    if(!isPlaying){
+        soundButton.textContent = "stop sound"
+    }
+    if(isPlaying){
+        stopSound()
+        soundButton.textContent = "oscillate boundary points"
+    }
+    isPlaying = !isPlaying
+
+})
 
 // control-element for the iteration-depth
 const iterationDepthSliderLabel = document.createElement("label")
