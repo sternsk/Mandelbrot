@@ -135,6 +135,7 @@
   console.log("ver 2219");
   var wrapper = document.getElementById("wrapper");
   var audioContext2 = null;
+  var oscillator2 = null;
   var overviewSvgWidth = 480;
   var overviewSvgHeight = 420;
   var dftSvgWidth = 480;
@@ -200,6 +201,9 @@
     if (!audioContext2) {
       audioContext2 = new AudioContext();
     }
+    if (!oscillator2) {
+      oscillator2 = audioContext2.createOscillator();
+    }
     if (!isPlaying) {
       soundButton.textContent = "stop sound";
       const sample = samplePoints;
@@ -207,6 +211,7 @@
         extractValuesAsFloat32Array(sample, "real"),
         extractValuesAsFloat32Array(sample, "imag")
       );
+      oscillator2.setPeriodicWave(wave);
     }
     if (isPlaying) {
       stopSound();

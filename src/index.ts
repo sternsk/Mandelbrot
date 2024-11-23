@@ -90,12 +90,16 @@ soundButton.addEventListener("click", ()=>{
     if(!audioContext){
         audioContext = new AudioContext()
     }
+    if(!oscillator){
+        oscillator = audioContext.createOscillator()
+    }
     if(!isPlaying){
         soundButton.textContent = "stop sound"
         const sample = samplePoints
         const wave = audioContext.createPeriodicWave(extractValuesAsFloat32Array(sample, "real"), 
                                                     extractValuesAsFloat32Array(sample, "imag")
                                                 )
+        oscillator.setPeriodicWave(wave)
         
     }
 
