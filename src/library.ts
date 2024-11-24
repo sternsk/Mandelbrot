@@ -3,6 +3,33 @@ export interface Complex{
   imag: number
 }
 
+export function mirrorX(samplePoints: Complex[]): Complex[]{
+  const arrayLength = samplePoints.length
+  const mirroredPoints = [...samplePoints]
+      for ( let index = arrayLength - 2; index >= 0; index--){
+          const reversedPoint = {real: samplePoints[index].real, imag: -samplePoints[index].imag}
+          mirroredPoints.push(reversedPoint)
+      }
+      return mirroredPoints
+}
+
+export function rotate(vector: {real: number, imag: number}, rotationAngle: number): {real: number, imag: number}{
+  const originLength = Math.sqrt(Math.pow(vector.real,2)+ Math.pow(vector.imag,2))
+  const originAngle = Math.atan2(vector.imag, vector.real)
+  const destinationAngle = originAngle + rotationAngle
+  const rotatedVector = scale({real: Math.cos(destinationAngle), imag: Math.sin(destinationAngle)}, originLength)
+  return rotatedVector
+}
+
+export function scale(vector: {real: number, imag: number}, amount: number): {real: number, imag: number}{
+  return {real: vector.real * amount, imag: vector.imag * amount}
+}
+
+export function add(v1: {real: number, imag: number}, v2: {real: number, imag: number}): {real: number, imag: number}{
+  return {real: v1.real + v2.real, imag: v1.imag + v2.imag}
+}
+
+
 // Discrete Fourier-Transformation
 export function dft(data: Complex[]): Complex[] {
   const N = data.length;

@@ -1,9 +1,11 @@
-import { rawsampleSvg, xMax, xMin, yMax, yMin, iterationDepth, overviewSvgWidth, overviewSvgHeight} from "src";
+import { rawsampleSvg, xMax, xMin, yMax, yMin, overviewSvgWidth, overviewSvgHeight} from "src";
 
 export class Mandelbrot{
     
     width:number = rawsampleSvg.getBBox().width;
     height:number = rawsampleSvg.getBBox().height;
+
+    iterationDepth: number = 4
    
     boundaryPoints: {real:number, imag: number}[]  = []
 
@@ -18,12 +20,12 @@ export class Mandelbrot{
         let z = { real: 0, imag: 0 };
         let iterations = 0;
         
-        while (iterations < iterationDepth && ( z.real * z.real + z.imag * z.imag <= 4)) {
+        while (iterations < this.iterationDepth && ( z.real * z.real + z.imag * z.imag <= 4)) {
             let realTemp = z.real * z.real - z.imag * z.imag + c.real;
             z.imag = 2 * z.real * z.imag + c.imag;
             z.real = realTemp;
             iterations++;
-            if (iterations == iterationDepth && z.real * z.real + z.imag * z.imag > 3.5 && z.real * z.real + z.imag * z.imag <= 4){
+            if (iterations == this.iterationDepth && z.real * z.real + z.imag * z.imag > 3.5 && z.real * z.real + z.imag * z.imag <= 4){
                 return viewPortCoordinate
             }
         }
