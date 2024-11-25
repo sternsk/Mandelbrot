@@ -1,7 +1,53 @@
+import { MandelbrotOutline } from "./calcMandelbrotOutline";
+import { Mandelbrot } from "./calcnPlot";
+
 export interface Complex{
   real: number
   imag: number
 }
+
+export interface IterationData {
+  rawData: Complex[];
+  dftData: Complex[];
+}
+
+export const storage: Map<number, IterationData> = new Map();
+
+async function calculateRawData(iterationDepth: number): Promise<Complex[]> {
+  const outline = new MandelbrotOutline(iterationDepth);
+  const rawData: Complex[] = await outline.calcMandelbrotOutline();
+  return rawData;
+}
+
+
+async function calculateAndStore(iterationDepth: number): Promise<void> {
+  if (iterationDepth < 3) {
+      console.error("Minimum iteration depth is 3");
+      return;
+  }
+  if (iterationDepth > 14) {
+      console.error("Maximum algorithm capability is 14");
+      return;
+  }
+
+  if (storage.has(iterationDepth)) {
+      console.log(`Data for iteration depth ${iterationDepth} already exists.`);
+      return;
+  }
+
+  console.log(`Calculating data for iteration depth ${iterationDepth}...`);
+
+  // First calculate:
+  const rawData: Complex[] = await calculateRawData(iterationDepth)
+  const dftData: Complex[] = await dft(rawData);
+  
+
+  // Daten in der Map speichern
+  storage.set(iterationDepth, { rawData, dftData});
+
+  console.log(`Data for iteration depth ${iterationDepth} stored.`);
+}
+
 
 export function mirrorX(samplePoints: Complex[]): Complex[]{
   const arrayLength = samplePoints.length
@@ -31,7 +77,7 @@ export function add(v1: {real: number, imag: number}, v2: {real: number, imag: n
 
 
 // Discrete Fourier-Transformation
-export function dft(data: Complex[]): Complex[] {
+export async function dft(data: Complex[]): Promise<Complex[]> {
   const N = data.length;
   const result: Complex[] = [];
 

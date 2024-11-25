@@ -1,4 +1,4 @@
-import { rawsampleSvg, xMax, xMin, yMax, yMin, overviewSvgWidth, overviewSvgHeight} from "src";
+import { rawsampleSvg, xMax, xMin, yMax, yMin, rawDataSvgWidth, rawDataSvgHeight} from "src";
 
 export class Mandelbrot{
     
@@ -40,8 +40,8 @@ export class Mandelbrot{
         cloudDots.forEach(dot => dot.remove());
 */
         this.boundaryPoints = [];
-        const sampleWidth = (xMax - xMin)/overviewSvgWidth
-        const sampleHeight = (yMax - yMin)/overviewSvgHeight
+        const sampleWidth = (xMax - xMin)/rawDataSvgWidth
+        const sampleHeight = (yMax - yMin)/rawDataSvgHeight
         for (let x = xMin; x < xMax; x += sampleWidth) {
             
             for (let y = yMin; y < yMax; y += sampleHeight) {

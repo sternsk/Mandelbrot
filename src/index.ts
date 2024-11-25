@@ -1,22 +1,25 @@
 
-console.log("ver 2237")
+console.log("ver 2227")
 import WorkerURL from './waveformworker.ts?worker';
 import { MandelbrotOutline } from "./calcMandelbrotOutline.js";
-import { Complex, mirrorX, dft, idft, extractValuesAsFloat32Array, createOscillatorFromWaveform, stopSound} from "./library.js";
+import { Complex, mirrorX, dft, idft, extractValuesAsFloat32Array, storage, createOscillatorFromWaveform, stopSound} from "./library.js";
 
 
 const wrapper = document.getElementById("wrapper")
 let audioContext: AudioContext | null = null
 let oscillator: OscillatorNode | null = null
 
-export const overviewSvgWidth =480
-export const overviewSvgHeight = 420
+export const rawDataSvgWidth =480
+export const rawDataSvgHeight = 420
 const dftSvgWidth = 480
 const dftSvgHeight = 420
+const idftSvgWidth = 480
+const idftSvgHeight = 420
 
 let width = 2.5
 let height = width
-let iterationDepth = 4;  // initiale Iterationstiefe
+let iterationDepth = 4;  // initial iteration-depth
+let accuracy = 169      //iniitial accuracy for inverse discrete fourier transformation
 export let xMin = -2, xMax = xMin + width
 export let yMin = -1.2, yMax = yMin + height
 export let animationRequest = true
@@ -34,9 +37,8 @@ export let animationRequest = true
 
 let rawSample: Complex[] = []
 let rawCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path")
-let dftsample: Complex[] = []
+let dftSample: Complex[] = []
 let dftPath = document.createElementNS("http://www.w3.org/2000/svg", "path") 
-
 
 const headline: HTMLHeadElement = document.createElement("h1")
 
@@ -44,15 +46,21 @@ const headline: HTMLHeadElement = document.createElement("h1")
 export const rawsampleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
 rawsampleSvg.setAttribute("id", "sampleCurveSvg")
 rawsampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
-rawsampleSvg.setAttribute("width", `${overviewSvgWidth}px`)
-rawsampleSvg.setAttribute("height", `${overviewSvgHeight}px`)
+rawsampleSvg.setAttribute("width", `${rawDataSvgWidth}px`)
+rawsampleSvg.setAttribute("height", `${rawDataSvgHeight}px`)
 
 // and there is the place where the transformed sampleCurve is plotted
 const dftSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
 dftSvg.setAttribute("id", "dftSvg")
 dftSvg.setAttribute("width", `${dftSvgWidth}`)
 dftSvg.setAttribute("height", `${dftSvgHeight}`)
-dftSvg.setAttribute("viewBox", "-1 -1 2 2")
+dftSvg.setAttribute("viewBox", "-0.000003941525533301985 -0.000004073599120061317 0.000007750550196828558 0.000007750550196828558")
+
+const idftSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+idftSvg.setAttribute("id", "idftSvg")
+idftSvg.setAttribute("width", `${idftSvgWidth}`)
+idftSvg.setAttribute("height", `${idftSvgHeight}`)
+idftSvg.setAttribute("viewBox", "-1.9 -1.25 2.5 2.5")
 
 
 const viewControlsContainer = document.createElement("div")
@@ -72,14 +80,8 @@ soundControlsContainer.style.padding = "10px"
 
 const mandelbrotOutline = new MandelbrotOutline(iterationDepth)
 updateHeadline()
-rawSample = mirrorX(mandelbrotOutline.calcMandelbrotOutline())
+rawSample = mirrorX(await mandelbrotOutline.calcMandelbrotOutline())
 
-rawCurvePath = drawLines(rawSample)
-rawsampleSvg.appendChild(rawCurvePath)
-
-dftsample = dft(rawSample)
-dftPath = drawLines(dftsample)
-dftSvg.appendChild(dftPath)
 
 const soundButton = document.createElement("button")
 soundButton.innerHTML = "oscillate boundary points"
@@ -98,33 +100,33 @@ soundButton.addEventListener("click", ()=>{
         console.log(sampleSelector.value)
         let sample
         if (sampleSelector.value == "dft")
-            sample = dftsample
+            sample = dftSample
         else    
-            sample = rawSample
-        
-        const wave = audioContext.createPeriodicWave(extractValuesAsFloat32Array(sample, "imag"), 
-                                                    extractValuesAsFloat32Array(sample, "real")
-                                                )
-        oscillator.setPeriodicWave(wave)
-        oscillator.connect(audioContext.destination)
-        oscillator.frequency.value = parseInt(frequencySlider.value)
-        oscillator.start()
-    }
-
-    if(isPlaying){
-        if (oscillator) {
-            oscillator.stop();
-            oscillator.disconnect();
-            oscillator = null;
-        }
+        sample = rawSample
     
-        if (audioContext) {
-            audioContext.close();
-            audioContext = null;
-        }
-        soundButton.textContent = "oscillate boundary points"
+    const wave = audioContext.createPeriodicWave(extractValuesAsFloat32Array(sample, "imag"), 
+    extractValuesAsFloat32Array(sample, "real")
+)
+oscillator.setPeriodicWave(wave)
+oscillator.connect(audioContext.destination)
+oscillator.frequency.value = parseInt(frequencySlider.value)
+oscillator.start()
+}
+
+if(isPlaying){
+    if (oscillator) {
+        oscillator.stop();
+        oscillator.disconnect();
+        oscillator = null;
     }
-    isPlaying = !isPlaying
+    
+    if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+    }
+    soundButton.textContent = "oscillate boundary points"
+}
+isPlaying = !isPlaying
 
 })
 
@@ -143,7 +145,25 @@ frequencySlider.addEventListener("input", (event) => {
     const frequency = (event.target as HTMLInputElement).valueAsNumber;
     if(oscillator)
         oscillator.frequency.value = frequency; 
-  });
+});
+
+// control of the retransformation accuracy
+const accuracySliderLabel = document.createElement("label")
+accuracySliderLabel.setAttribute("for", "accuracySliderLabel")
+accuracySliderLabel.innerHTML = "accuracy: "
+const accuracySlider = document.createElement("input")
+accuracySlider.id = "accuracySlider"
+accuracySlider.type = "range"
+accuracySlider.min = "1"
+accuracySlider.max = `${rawSample.length}`
+accuracySlider.value = "169"
+
+accuracySlider.addEventListener("input", (event) => {
+    accuracy = (event.target as HTMLInputElement).valueAsNumber;
+    idftSample = idft(dftSample, accuracy)
+    idftSvg.innerHTML = ""
+    idftSvg.appendChild(drawLines(idftSample))
+});
 
 //select the sample to play
 const sampleSelector = document.createElement("select")
@@ -158,35 +178,57 @@ selectDFT.textContent = "Fourier-transformed Data"
 sampleSelector.appendChild(selectRawSample)
 sampleSelector.appendChild(selectDFT)
 sampleSelector.addEventListener("change", ()=>{
-    
 })
-
 
 // control-element for the iteration-depth
 const iterationDepthSliderLabel = document.createElement("label")
-iterationDepthSliderLabel.setAttribute("for", "iterationsSlider")
+iterationDepthSliderLabel.setAttribute("for", "iterationDepthSlider")
 iterationDepthSliderLabel.innerHTML = "iterations: "
 const iterationDepthSlider = document.createElement("input")
 iterationDepthSlider.id = "iterationsSlider"
 iterationDepthSlider.type = "range"
-iterationDepthSlider.min = "2"
-iterationDepthSlider.max = "14"
+iterationDepthSlider.min = "3"
+iterationDepthSlider.max = `${iterationDepth}`
 iterationDepthSlider.step = "1"
 iterationDepthSlider.value = `${iterationDepth}`
-iterationDepthSlider.addEventListener("input", function(event){
+iterationDepthSlider.addEventListener("input", async function(event){
     mandelbrotOutline.iterationDepth = parseInt(iterationDepthSlider.value)
     updateHeadline()
     
-    rawSample = mirrorX(mandelbrotOutline.calcMandelbrotOutline())
-    rawCurvePath = drawLines(rawSample)
+    const storedData = storage.get(mandelbrotOutline.iterationDepth);
+    if (storedData && storedData.rawData) {
+        // Daten aus dem Speicher holen
+        rawSample = storedData.rawData;
+        console.log(`Loaded raw data for iteration depth ${mandelbrotOutline.iterationDepth}`);
+    } else { 
+        
+        //Daten berechnen und in den Speicher laden 
+        console.log(`Calculating data for iteration depth ${mandelbrotOutline.iterationDepth}...`);
+        const newRawData = await mandelbrotOutline.calcMandelbrotOutline();
+        storage.set(iterationDepth, { rawData: newRawData, dftData: [] });
+        rawSample = storage.get(iterationDepth)?.rawData || []; // Fallback auf leeres Array
+        console.log(`Calculated and loaded raw data for iteration depth ${mandelbrotOutline.iterationDepth}`);
+    }
     rawsampleSvg.innerHTML = ""
-    rawsampleSvg.appendChild(rawCurvePath)
+    rawsampleSvg.appendChild(drawLines(rawSample))
     
-    dftsample = dft(rawSample)
+    dftSample = await dft(rawSample)
     dftSvg.innerHTML = ""
-    dftSvg.appendChild(drawLines(dftsample))
+    dftSvg.appendChild(drawDots(dftSample, pixelHeight(dftSvg)))
     
+    idftSample = idft(dftSample, accuracy)
+    idftSvg.innerHTML = ""
+    idftSvg.appendChild(drawLines(idftSample))
 })
+
+const iterationDepthInput = document.createElement("input")
+iterationDepthInput.type = "number"
+iterationDepthInput.id = "iterationDepthInput"
+iterationDepthInput.value = iterationDepthSlider.value
+iterationDepthInput.onsubmit = () =>{
+    // check if desired iterationDepth is already stored
+    iterationDepthSlider.max = iterationDepthInput.value
+}
 
 
 soundControlsContainer.appendChild(soundButton)
@@ -196,9 +238,13 @@ soundControlsContainer.appendChild(sampleSelector)
 
 viewControlsContainer.appendChild(iterationDepthSliderLabel)
 viewControlsContainer.appendChild(iterationDepthSlider)
+viewControlsContainer.appendChild(iterationDepthInput)
+viewControlsContainer.appendChild(accuracySliderLabel)
+viewControlsContainer.appendChild(accuracySlider)
 
 viewElementsContainer.appendChild(rawsampleSvg)
 viewElementsContainer.appendChild(dftSvg)
+viewElementsContainer.appendChild(idftSvg)
 
 
 wrapper?.appendChild(headline)
@@ -206,14 +252,22 @@ wrapper?.appendChild(soundControlsContainer)
 wrapper?.appendChild(viewControlsContainer)
 wrapper?.appendChild(viewElementsContainer)
 
+rawCurvePath = drawLines(rawSample)
+rawsampleSvg.appendChild(rawCurvePath)
 
-rawsampleSvg.addEventListener("mouseleave", () => {
-    mousedown = false
-})
+dftSample = await dft(rawSample)
+dftPath = drawDots(dftSample, pixelHeight(dftSvg))
+dftSvg.appendChild(dftPath)
+
+let idftSample = idft(dftSample, accuracy)
+let idftPath = drawLines(idftSample)
+idftSvg.appendChild(idftPath)
 
 let xOffset: number
 let yOffset: number
 let mousedown = false
+
+
 rawsampleSvg.addEventListener("mousedown", (event) =>{
     mousedown = true
     const coords = getSvgCoords(rawsampleSvg, event);
@@ -230,9 +284,13 @@ rawsampleSvg.addEventListener("mousemove", (event) =>{
     rawsampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
     
 })
+
+rawsampleSvg.addEventListener("mouseleave", () => {
+    mousedown = false
+})
+
 rawsampleSvg.addEventListener("mouseup", ()=>{
     mousedown = false
-    drawLines(rawSample)
 })
 
 rawsampleSvg.addEventListener("wheel", (event) =>{
@@ -262,6 +320,10 @@ rawsampleSvg.addEventListener("wheel", (event) =>{
     rawsampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
     
 })
+
+dftSvg.addEventListener("mouseleave", () => {
+    mousedown = false
+})
 dftSvg.addEventListener("mousedown", (event) =>{
     mousedown = true
     const coords = getSvgCoords(dftSvg, event);
@@ -272,10 +334,15 @@ dftSvg.addEventListener("mousemove", (event) =>{
     if(!mousedown)
         return
     const coords = getSvgCoords(dftSvg, event);
-    xMin += xOffset - coords.x
-    yMin += yOffset - coords.y
-    dftSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
+    let x = dftSvg.viewBox.baseVal.x
+    let y = dftSvg.viewBox.baseVal.y
+    let width = dftSvg.viewBox.baseVal.width
+    let height = dftSvg.viewBox.baseVal.height
+    x += xOffset - coords.x
+    y += yOffset - coords.y
+    dftSvg.setAttribute("viewBox", `${x} ${y} ${width} ${height}`)
 })
+
 dftSvg.addEventListener("mouseup", ()=>{
     mousedown = false
     
@@ -285,6 +352,12 @@ dftSvg.addEventListener("wheel", (event) =>{
     const mouseX = event.x - dftSvg.getBoundingClientRect().x
     const clientHeight = dftSvg.getBoundingClientRect().height
     const mouseY = event.y - dftSvg.getBoundingClientRect().y
+    const oldWidth = dftSvg.viewBox.baseVal.width
+    const oldHeight = dftSvg.viewBox.baseVal.height
+    let x = dftSvg.viewBox.baseVal.x
+    let y = dftSvg.viewBox.baseVal.y
+    let width: number = oldWidth
+    let height: number = oldHeight
 
     // differentiate between mousewheel and touchpad
     let deltaY = event.deltaY
@@ -294,18 +367,67 @@ dftSvg.addEventListener("wheel", (event) =>{
         else
             deltaY += 100
     }
+       
+    width += oldWidth * 10 / deltaY 
+    height = width
+    
+    x -= (width - oldWidth) * mouseX / clientWidth 
+    y -=(height - oldHeight) * mouseY / clientHeight 
+    
+    dftSvg.setAttribute("viewBox", `${x} ${y} ${width} ${height}`)
+  
+})
 
-    const oldWidth = width
-    const oldHeight = height
+idftSvg.addEventListener("mousedown", (event) =>{
+    mousedown = true
+    const coords = getSvgCoords(dftSvg, event);
+    xOffset = coords.x;
+    yOffset = coords.y;
+})
+idftSvg.addEventListener("mousemove", (event) =>{
+    if(!mousedown)
+        return
+    const coords = getSvgCoords(idftSvg, event);
+    let x = idftSvg.viewBox.baseVal.x
+    let y = idftSvg.viewBox.baseVal.y
+    const width = idftSvg.viewBox.baseVal.width
+    const height = idftSvg.viewBox.baseVal.height
+    x += xOffset - coords.x
+    y += yOffset - coords.y
+    idftSvg.setAttribute("viewBox", `${x} ${y} ${width} ${height}`)
+})
+idftSvg.addEventListener("mouseup", ()=>{
+    mousedown = false
+    
+})
+idftSvg.addEventListener("wheel", (event) =>{
+    const clientWidth = idftSvg.getBoundingClientRect().width
+    const mouseX = event.x - idftSvg.getBoundingClientRect().x
+    const clientHeight = idftSvg.getBoundingClientRect().height
+    const mouseY = event.y - idftSvg.getBoundingClientRect().y
+    const oldWidth = idftSvg.viewBox.baseVal.width
+    const oldHeight = idftSvg.viewBox.baseVal.height
+    let width = oldWidth
+    let height = oldHeight
+    let x = idftSvg.viewBox.baseVal.x
+    let y = idftSvg.viewBox.baseVal.y
+
+    // differentiate between mousewheel and touchpad
+    let deltaY = event.deltaY
+    if(Math.abs(deltaY) < 100){
+        if(deltaY <= 0)
+            deltaY -= 100
+        else
+            deltaY += 100
+    }
+    
     width += width * 10 / deltaY 
     height = width
     
-    xMin -= (width - oldWidth ) * mouseX / clientWidth
-    xMax = xMin + width
-    yMin -=(height - oldHeight) * mouseY / clientHeight
-    yMax = yMin + height
-
-    dftSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
+    x -= (width - oldWidth ) * mouseX / clientWidth
+    y -= (height - oldHeight) * mouseY / clientHeight
+    
+    idftSvg.setAttribute("viewBox", `${x} ${y} ${width} ${height}`)
     
 })
 
@@ -317,7 +439,7 @@ function getSvgCoords(svgElement: SVGSVGElement, event: MouseEvent) {
     point.x = event.clientX;
     point.y = event.clientY;
     const svgCoords = point.matrixTransform(svgElement.getScreenCTM()!.inverse());
-    return svgCoords;
+    return svgCoords; 
 }
 
 
@@ -343,22 +465,26 @@ function drawLines(samplePoints: Complex[]): SVGPathElement {
 
     return sampleCurvePath
 }
-function drawDots(samplePoints: Complex[]): SVGPathElement {
-    const sampleCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path")
 
-    if(samplePoints.length < 2){
-        console.warn("Not enough points to draw lines")
-        return sampleCurvePath
-    }
+function pixelHeight(svgElem: SVGSVGElement): number{
     
+    return(svgElem.viewBox.baseVal.height / svgElem.getBoundingClientRect().height)
+}
+
+function drawDots(samplePoints: Complex[], pixelHeight: number): SVGPathElement {
+    const sampleCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path")
+    const strokeWidth = .5
+
+    console.log(pixelHeight)
+
     let pathData = ""
     for(let i = 1; i<samplePoints.length; i++){
-        pathData += ` M ${samplePoints[i].real} ${samplePoints[i].imag} v .01`
+        pathData += `M ${samplePoints[i].real} ${samplePoints[i].imag} v ${pixelHeight}`
     }
     sampleCurvePath.setAttribute("id", "outlinePath")
     sampleCurvePath.setAttribute("fill", "none")
     sampleCurvePath.setAttribute("stroke", "black")
-    sampleCurvePath.setAttribute("stroke-width", ".5 px")
+    sampleCurvePath.setAttribute("stroke-width", `${strokeWidth}`)
     sampleCurvePath.setAttribute("vector-effect", "non-scaling-stroke")
     sampleCurvePath.setAttribute("d", `${pathData}`)
 

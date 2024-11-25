@@ -17,7 +17,7 @@ get iterationDepth(): number{
     return this._iterationDepth
 }
 
-calcMandelbrotOutline(): Complex[]{
+async calcMandelbrotOutline(): Promise<Complex[]>{
     
     const begin = Date.now()
     let duration: number
