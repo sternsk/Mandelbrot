@@ -7,8 +7,11 @@ export interface Complex{
 }
 
 export interface IterationData {
-  rawData: Complex[];
-  dftData: Complex[];
+  rawSample: Complex[];
+  rawLines: SVGPathElement;
+  dftSample: Complex[];
+  dftLines?: SVGPathElement;
+  dftDots?: SVGPathElement;
 }
 
 export const storage: Map<number, IterationData> = new Map();
@@ -38,12 +41,12 @@ async function calculateAndStore(iterationDepth: number): Promise<void> {
   console.log(`Calculating data for iteration depth ${iterationDepth}...`);
 
   // First calculate:
-  const rawData: Complex[] = await calculateRawData(iterationDepth)
-  const dftData: Complex[] = await dft(rawData);
+  const rawSample: Complex[] = await calculateRawData(iterationDepth)
+  const dftSample: Complex[] = await dft(rawSample);
   
 
   // Daten in der Map speichern
-  storage.set(iterationDepth, { rawData, dftData});
+  storage.set(iterationDepth, { rawSample: rawSample, rawLines: drawLines(rawSample), dftSample: dftSample});
 
   console.log(`Data for iteration depth ${iterationDepth} stored.`);
 }
@@ -77,7 +80,7 @@ export function add(v1: {real: number, imag: number}, v2: {real: number, imag: n
 
 
 // Discrete Fourier-Transformation
-export async function dft(data: Complex[]): Promise<Complex[]> {
+export function dft(data: Complex[]): Complex[] {
   const N = data.length;
   const result: Complex[] = [];
 
@@ -123,6 +126,54 @@ export function idft(coefficients: Complex[], N: number): Complex[] {
   }
 
   return result;
+}
+
+export function drawLines(samplePoints: Complex[]): SVGPathElement {
+  const sampleCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path")
+
+  if(samplePoints.length < 2){
+      console.warn("Not enough points to draw lines")
+      return sampleCurvePath
+  }
+  
+  let pathData = `M${samplePoints[0].real} ${samplePoints[0].imag}`
+  for(let i = 1; i<samplePoints.length; i++){
+      pathData += `L ${samplePoints[i].real} ${samplePoints[i].imag}`
+  }
+  
+  sampleCurvePath.setAttribute("id", "outlinePath")
+  sampleCurvePath.setAttribute("fill", "none")
+  sampleCurvePath.setAttribute("stroke", "black")
+  sampleCurvePath.setAttribute("stroke-width", ".5 px")
+  sampleCurvePath.setAttribute("vector-effect", "non-scaling-stroke")
+  sampleCurvePath.setAttribute("d", `${pathData}`)
+
+  return sampleCurvePath
+}
+
+export function pixelHeight(svgElem: SVGSVGElement): number{
+  
+  return(svgElem.viewBox.baseVal.height / svgElem.getBoundingClientRect().height)
+}
+
+export function drawDots(samplePoints: Complex[], pixelHeight: number): SVGPathElement {
+  const sampleCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path")
+  const strokeWidth = .5
+
+  console.log(pixelHeight)
+
+  let pathData = ""
+  for(let i = 1; i<samplePoints.length; i++){
+      pathData += `M ${samplePoints[i].real} ${samplePoints[i].imag} v ${pixelHeight}`
+  }
+  sampleCurvePath.setAttribute("id", "outlinePath")
+  sampleCurvePath.setAttribute("fill", "none")
+  sampleCurvePath.setAttribute("stroke", "black")
+  sampleCurvePath.setAttribute("stroke-width", `${strokeWidth}`)
+  sampleCurvePath.setAttribute("vector-effect", "non-scaling-stroke")
+  sampleCurvePath.setAttribute("d", `${pathData}`)
+
+  return sampleCurvePath
 }
 
 export function extract(

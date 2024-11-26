@@ -5,6 +5,7 @@
   var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
   // src/library.ts
+  var storage = /* @__PURE__ */ new Map();
   function mirrorX(samplePoints) {
     const arrayLength = samplePoints.length;
     const mirroredPoints = [...samplePoints];
@@ -59,6 +60,43 @@
       result.push(sum);
     }
     return result;
+  }
+  function drawLines(samplePoints) {
+    const sampleCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    if (samplePoints.length < 2) {
+      console.warn("Not enough points to draw lines");
+      return sampleCurvePath;
+    }
+    let pathData = `M${samplePoints[0].real} ${samplePoints[0].imag}`;
+    for (let i = 1; i < samplePoints.length; i++) {
+      pathData += `L ${samplePoints[i].real} ${samplePoints[i].imag}`;
+    }
+    sampleCurvePath.setAttribute("id", "outlinePath");
+    sampleCurvePath.setAttribute("fill", "none");
+    sampleCurvePath.setAttribute("stroke", "black");
+    sampleCurvePath.setAttribute("stroke-width", ".5 px");
+    sampleCurvePath.setAttribute("vector-effect", "non-scaling-stroke");
+    sampleCurvePath.setAttribute("d", `${pathData}`);
+    return sampleCurvePath;
+  }
+  function pixelHeight(svgElem) {
+    return svgElem.viewBox.baseVal.height / svgElem.getBoundingClientRect().height;
+  }
+  function drawDots(samplePoints, pixelHeight2) {
+    const sampleCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const strokeWidth = 0.5;
+    console.log(pixelHeight2);
+    let pathData = "";
+    for (let i = 1; i < samplePoints.length; i++) {
+      pathData += `M ${samplePoints[i].real} ${samplePoints[i].imag} v ${pixelHeight2}`;
+    }
+    sampleCurvePath.setAttribute("id", "outlinePath");
+    sampleCurvePath.setAttribute("fill", "none");
+    sampleCurvePath.setAttribute("stroke", "black");
+    sampleCurvePath.setAttribute("stroke-width", `${strokeWidth}`);
+    sampleCurvePath.setAttribute("vector-effect", "non-scaling-stroke");
+    sampleCurvePath.setAttribute("d", `${pathData}`);
+    return sampleCurvePath;
   }
   function extractValuesAsFloat32Array(points, part) {
     return new Float32Array(points.map((complex) => complex[part]));
@@ -135,7 +173,7 @@
   };
 
   // src/index.ts
-  console.log("ver 1858");
+  console.log("ver 2220");
   var wrapper = document.getElementById("wrapper");
   var audioContext = null;
   var oscillator = null;
@@ -153,17 +191,16 @@
   var xMax = xMin + width;
   var yMin = -1.2;
   var yMax = yMin + height;
-  var animationRequest = true;
   var rawSample = [];
   var rawCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   var dftSample = [];
   var dftPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   var headline = document.createElement("h1");
-  var rawsampleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  rawsampleSvg.setAttribute("id", "sampleCurveSvg");
-  rawsampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
-  rawsampleSvg.setAttribute("width", `${rawDataSvgWidth}px`);
-  rawsampleSvg.setAttribute("height", `${rawDataSvgHeight}px`);
+  var rawSampleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  rawSampleSvg.setAttribute("id", "sampleCurveSvg");
+  rawSampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+  rawSampleSvg.setAttribute("width", `${rawDataSvgWidth}px`);
+  rawSampleSvg.setAttribute("height", `${rawDataSvgHeight}px`);
   var dftSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   dftSvg.setAttribute("id", "dftSvg");
   dftSvg.setAttribute("width", `${dftSvgWidth}`);
@@ -189,6 +226,11 @@
   var mandelbrotOutline = new MandelbrotOutline(iterationDepth);
   updateHeadline();
   rawSample = mirrorX(mandelbrotOutline.calcMandelbrotOutline());
+  var rawLines = drawLines(rawSample);
+  dftSample = dft(rawSample);
+  var dftDots = drawDots(dftSample, pixelHeight(dftSvg));
+  var idftSample = idft(dftSample, accuracy);
+  storage.set(iterationDepth, { rawSample, rawLines, dftSample, dftDots });
   var soundButton = document.createElement("button");
   soundButton.innerHTML = "oscillate boundary points";
   soundButton.style.width = "200px";
@@ -282,24 +324,44 @@
   iterationDepthSlider.max = `${iterationDepth}`;
   iterationDepthSlider.step = "1";
   iterationDepthSlider.value = `${iterationDepth}`;
-  iterationDepthSlider.addEventListener("input", function(event) {
-    mandelbrotOutline.iterationDepth = parseInt(iterationDepthSlider.value);
+  iterationDepthSlider.addEventListener("input", async function(event) {
+    mandelbrotOutline.iterationDepth = Number(iterationDepthSlider.value);
+    iterationDepthInput.value = iterationDepthSlider.value;
     updateHeadline();
-    rawSample = mirrorX(mandelbrotOutline.calcMandelbrotOutline());
-    rawsampleSvg.innerHTML = "";
-    rawsampleSvg.appendChild(drawLines(rawSample));
+    const storedData = storage.get(mandelbrotOutline.iterationDepth);
+    if (storedData && storedData.rawSample) {
+      rawSample = storedData.rawSample;
+      rawSampleSvg.appendChild(storedData.rawLines);
+      dftSample = storedData.dftSample;
+      console.log(`Loaded raw data for iteration depth ${mandelbrotOutline.iterationDepth}`);
+    } else {
+      console.log(`Calculating data for iteration depth ${mandelbrotOutline.iterationDepth}...`);
+      const newRawData = await mirrorX(mandelbrotOutline.calcMandelbrotOutline());
+      const newRawLines = await drawLines(newRawData);
+      const newDftSample = await dft(newRawData);
+      const newDftDots = await drawDots(newDftSample, pixelHeight(dftSvg));
+      storage.set(mandelbrotOutline.iterationDepth, {
+        rawSample: newRawData,
+        rawLines: newRawLines,
+        dftSample: newDftSample,
+        dftDots: newDftDots
+      });
+      rawSample = storage.get(iterationDepth)?.rawSample || [];
+      console.log(`Calculated and loaded raw data for iteration depth ${mandelbrotOutline.iterationDepth}`);
+    }
+    rawSampleSvg.innerHTML = "";
+    rawSampleSvg.appendChild(drawLines(rawSample));
     dftSample = dft(rawSample);
     dftSvg.innerHTML = "";
-    dftSvg.appendChild(drawDots(dftSample, verticalResolution(dftSvg)));
-    idftSample = idft(dftSample, accuracy);
-    idftSvg.innerHTML = "";
-    idftSvg.appendChild(drawLines(idftSample));
+    dftSvg.appendChild(drawDots(dftSample, pixelHeight(dftSvg)));
   });
   var iterationDepthInput = document.createElement("input");
   iterationDepthInput.type = "number";
   iterationDepthInput.id = "iterationDepthInput";
   iterationDepthInput.value = iterationDepthSlider.value;
-  iterationDepthInput.onsubmit = () => {
+  iterationDepthInput.oninput = () => {
+    iterationDepthSlider.max = iterationDepthInput.value;
+    console.log("iterationDepthSlider.max: " + iterationDepthSlider.max);
   };
   soundControlsContainer.appendChild(soundButton);
   soundControlsContainer.appendChild(frequencySliderLabel);
@@ -307,52 +369,51 @@
   soundControlsContainer.appendChild(sampleSelector);
   viewControlsContainer.appendChild(iterationDepthSliderLabel);
   viewControlsContainer.appendChild(iterationDepthSlider);
+  viewControlsContainer.appendChild(iterationDepthInput);
   viewControlsContainer.appendChild(accuracySliderLabel);
   viewControlsContainer.appendChild(accuracySlider);
-  viewElementsContainer.appendChild(rawsampleSvg);
+  viewElementsContainer.appendChild(rawSampleSvg);
   viewElementsContainer.appendChild(dftSvg);
   viewElementsContainer.appendChild(idftSvg);
-  wrapper == null ? void 0 : wrapper.appendChild(headline);
-  wrapper == null ? void 0 : wrapper.appendChild(soundControlsContainer);
-  wrapper == null ? void 0 : wrapper.appendChild(viewControlsContainer);
-  wrapper == null ? void 0 : wrapper.appendChild(viewElementsContainer);
+  wrapper?.appendChild(headline);
+  wrapper?.appendChild(soundControlsContainer);
+  wrapper?.appendChild(viewControlsContainer);
+  wrapper?.appendChild(viewElementsContainer);
   rawCurvePath = drawLines(rawSample);
-  rawsampleSvg.appendChild(rawCurvePath);
-  dftSample = dft(rawSample);
-  dftPath = drawDots(dftSample, verticalResolution(dftSvg));
+  rawSampleSvg.appendChild(rawCurvePath);
+  dftPath = drawDots(dftSample, pixelHeight(dftSvg));
   dftSvg.appendChild(dftPath);
-  var idftSample = idft(dftSample, accuracy);
   var idftPath = drawLines(idftSample);
   idftSvg.appendChild(idftPath);
   var xOffset;
   var yOffset;
   var mousedown = false;
-  rawsampleSvg.addEventListener("mousedown", (event) => {
+  rawSampleSvg.addEventListener("mousedown", (event) => {
     mousedown = true;
-    const coords = getSvgCoords(rawsampleSvg, event);
+    const coords = getSvgCoords(rawSampleSvg, event);
     xOffset = coords.x;
     yOffset = coords.y;
   });
-  rawsampleSvg.addEventListener("mousemove", (event) => {
+  rawSampleSvg.addEventListener("mousemove", (event) => {
     if (!mousedown)
       return;
-    const coords = getSvgCoords(rawsampleSvg, event);
+    const coords = getSvgCoords(rawSampleSvg, event);
     xMin += xOffset - coords.x;
     yMin += yOffset - coords.y;
-    rawsampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+    rawSampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   });
-  rawsampleSvg.addEventListener("mouseleave", () => {
+  rawSampleSvg.addEventListener("mouseleave", () => {
     mousedown = false;
   });
-  rawsampleSvg.addEventListener("mouseup", () => {
+  rawSampleSvg.addEventListener("mouseup", () => {
     mousedown = false;
   });
-  rawsampleSvg.addEventListener("wheel", (event) => {
+  rawSampleSvg.addEventListener("wheel", (event) => {
     let deltaY = event.deltaY;
-    const clientWidth = rawsampleSvg.getBoundingClientRect().width;
-    const mouseX = event.x - rawsampleSvg.getBoundingClientRect().x;
-    const clientHeight = rawsampleSvg.getBoundingClientRect().height;
-    const mouseY = event.y - rawsampleSvg.getBoundingClientRect().y;
+    const clientWidth = rawSampleSvg.getBoundingClientRect().width;
+    const mouseX = event.x - rawSampleSvg.getBoundingClientRect().x;
+    const clientHeight = rawSampleSvg.getBoundingClientRect().height;
+    const mouseY = event.y - rawSampleSvg.getBoundingClientRect().y;
     if (Math.abs(deltaY) < 100) {
       if (deltaY <= 0)
         deltaY -= 100;
@@ -367,7 +428,7 @@
     xMax = xMin + width;
     yMin -= (height - oldHeight) * mouseY / clientHeight;
     yMax = yMin + height;
-    rawsampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
+    rawSampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`);
   });
   dftSvg.addEventListener("mouseleave", () => {
     mousedown = false;
@@ -423,6 +484,9 @@
     xOffset = coords.x;
     yOffset = coords.y;
   });
+  idftSvg.addEventListener("mouseleave", () => {
+    mousedown = false;
+  });
   idftSvg.addEventListener("mousemove", (event) => {
     if (!mousedown)
       return;
@@ -468,45 +532,6 @@
     point.y = event.clientY;
     const svgCoords = point.matrixTransform(svgElement.getScreenCTM().inverse());
     return svgCoords;
-  }
-  function drawLines(samplePoints) {
-    const sampleCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    if (samplePoints.length < 2) {
-      console.warn("Not enough points to draw lines");
-      return sampleCurvePath;
-    }
-    let pathData = `M${samplePoints[0].real} ${samplePoints[0].imag}`;
-    for (let i = 1; i < samplePoints.length; i++) {
-      pathData += `L ${samplePoints[i].real} ${samplePoints[i].imag}`;
-    }
-    sampleCurvePath.setAttribute("id", "outlinePath");
-    sampleCurvePath.setAttribute("fill", "none");
-    sampleCurvePath.setAttribute("stroke", "black");
-    sampleCurvePath.setAttribute("stroke-width", ".5 px");
-    sampleCurvePath.setAttribute("vector-effect", "non-scaling-stroke");
-    sampleCurvePath.setAttribute("d", `${pathData}`);
-    return sampleCurvePath;
-  }
-  function verticalResolution(svgElem) {
-    console.log("svgElem.viewBox.baseVal.height: " + svgElem.viewBox.baseVal.height);
-    console.log("svgElem.getBoundingClientRect().height: " + svgElem.getBoundingClientRect().height);
-    return svgElem.viewBox.baseVal.height / svgElem.getBoundingClientRect().height;
-  }
-  function drawDots(samplePoints, pixelHeight) {
-    const sampleCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    const strokeWidth = 0.5;
-    console.log(pixelHeight);
-    let pathData = "";
-    for (let i = 1; i < samplePoints.length; i++) {
-      pathData += `M ${samplePoints[i].real} ${samplePoints[i].imag} v ${pixelHeight}`;
-    }
-    sampleCurvePath.setAttribute("id", "outlinePath");
-    sampleCurvePath.setAttribute("fill", "none");
-    sampleCurvePath.setAttribute("stroke", "black");
-    sampleCurvePath.setAttribute("stroke-width", `${strokeWidth}`);
-    sampleCurvePath.setAttribute("vector-effect", "non-scaling-stroke");
-    sampleCurvePath.setAttribute("d", `${pathData}`);
-    return sampleCurvePath;
   }
   function updateHeadline() {
     headline.innerHTML = headline.innerHTML = `Sonification of the Mandelbrot-set at iteration-depth ${mandelbrotOutline.iterationDepth}`;

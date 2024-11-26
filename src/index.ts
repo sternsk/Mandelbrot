@@ -1,8 +1,8 @@
 
-console.log("ver 2227")
+console.log("ver 2220")
 import WorkerURL from './waveformworker.ts?worker';
 import { MandelbrotOutline } from "./calcMandelbrotOutline.js";
-import { Complex, mirrorX, dft, idft, extractValuesAsFloat32Array, storage, createOscillatorFromWaveform, stopSound} from "./library.js";
+import { Complex, drawLines, drawDots, pixelHeight, mirrorX, dft, idft, extractValuesAsFloat32Array, storage, createOscillatorFromWaveform, stopSound} from "./library.js";
 
 
 const wrapper = document.getElementById("wrapper")
@@ -22,8 +22,6 @@ let iterationDepth = 4;  // initial iteration-depth
 let accuracy = 169      //iniitial accuracy for inverse discrete fourier transformation
 export let xMin = -2, xMax = xMin + width
 export let yMin = -1.2, yMax = yMin + height
-export let animationRequest = true
-
 
 
 // // outsource the calculations to a worker
@@ -43,11 +41,11 @@ let dftPath = document.createElementNS("http://www.w3.org/2000/svg", "path")
 const headline: HTMLHeadElement = document.createElement("h1")
 
 // there is the constructed mandelbrot line in the left window
-export const rawsampleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
-rawsampleSvg.setAttribute("id", "sampleCurveSvg")
-rawsampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
-rawsampleSvg.setAttribute("width", `${rawDataSvgWidth}px`)
-rawsampleSvg.setAttribute("height", `${rawDataSvgHeight}px`)
+export const rawSampleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+rawSampleSvg.setAttribute("id", "sampleCurveSvg")
+rawSampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
+rawSampleSvg.setAttribute("width", `${rawDataSvgWidth}px`)
+rawSampleSvg.setAttribute("height", `${rawDataSvgHeight}px`)
 
 // and there is the place where the transformed sampleCurve is plotted
 const dftSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
@@ -80,8 +78,13 @@ soundControlsContainer.style.padding = "10px"
 
 const mandelbrotOutline = new MandelbrotOutline(iterationDepth)
 updateHeadline()
-rawSample = mirrorX(await mandelbrotOutline.calcMandelbrotOutline())
+rawSample = mirrorX(mandelbrotOutline.calcMandelbrotOutline())
+const rawLines = drawLines(rawSample)
 
+dftSample = dft(rawSample)
+const dftDots = drawDots(dftSample, pixelHeight(dftSvg))
+let idftSample = idft(dftSample, accuracy)
+storage.set(iterationDepth, {rawSample: rawSample, rawLines: rawLines, dftSample: dftSample, dftDots: dftDots})
 
 const soundButton = document.createElement("button")
 soundButton.innerHTML = "oscillate boundary points"
@@ -192,44 +195,56 @@ iterationDepthSlider.max = `${iterationDepth}`
 iterationDepthSlider.step = "1"
 iterationDepthSlider.value = `${iterationDepth}`
 iterationDepthSlider.addEventListener("input", async function(event){
-    mandelbrotOutline.iterationDepth = parseInt(iterationDepthSlider.value)
+    mandelbrotOutline.iterationDepth = Number(iterationDepthSlider.value)
+    iterationDepthInput.value = iterationDepthSlider.value
     updateHeadline()
     
     const storedData = storage.get(mandelbrotOutline.iterationDepth);
-    if (storedData && storedData.rawData) {
+    if (storedData && storedData.rawSample) {
         // Daten aus dem Speicher holen
-        rawSample = storedData.rawData;
+        rawSample = storedData.rawSample
+        rawSampleSvg.appendChild(storedData.rawLines)
+        dftSample = storedData.dftSample
         console.log(`Loaded raw data for iteration depth ${mandelbrotOutline.iterationDepth}`);
     } else { 
         
         //Daten berechnen und in den Speicher laden 
         console.log(`Calculating data for iteration depth ${mandelbrotOutline.iterationDepth}...`);
-        const newRawData = await mandelbrotOutline.calcMandelbrotOutline();
-        storage.set(iterationDepth, { rawData: newRawData, dftData: [] });
-        rawSample = storage.get(iterationDepth)?.rawData || []; // Fallback auf leeres Array
+        const newRawData = await mirrorX(mandelbrotOutline.calcMandelbrotOutline())
+        const newRawLines = await drawLines(newRawData)
+        const newDftSample = await dft(newRawData)
+        const newDftDots = await drawDots(newDftSample, pixelHeight(dftSvg))
+
+        storage.set(mandelbrotOutline.iterationDepth, {rawSample: newRawData, 
+                                                        rawLines: newRawLines, 
+                                                        dftSample: newDftSample,
+                                                        dftDots: newDftDots });
+        rawSample = storage.get(iterationDepth)?.rawSample || []; // Fallback auf leeres Array
         console.log(`Calculated and loaded raw data for iteration depth ${mandelbrotOutline.iterationDepth}`);
     }
-    rawsampleSvg.innerHTML = ""
-    rawsampleSvg.appendChild(drawLines(rawSample))
+
+    rawSampleSvg.innerHTML = ""
+    rawSampleSvg.appendChild(drawLines(rawSample))
     
-    dftSample = await dft(rawSample)
+    dftSample = dft(rawSample)
     dftSvg.innerHTML = ""
     dftSvg.appendChild(drawDots(dftSample, pixelHeight(dftSvg)))
-    
+    /*
     idftSample = idft(dftSample, accuracy)
     idftSvg.innerHTML = ""
     idftSvg.appendChild(drawLines(idftSample))
+    */
 })
 
 const iterationDepthInput = document.createElement("input")
 iterationDepthInput.type = "number"
 iterationDepthInput.id = "iterationDepthInput"
 iterationDepthInput.value = iterationDepthSlider.value
-iterationDepthInput.onsubmit = () =>{
+iterationDepthInput.oninput = () =>{
     // check if desired iterationDepth is already stored
     iterationDepthSlider.max = iterationDepthInput.value
+    console.log("iterationDepthSlider.max: "+iterationDepthSlider.max)
 }
-
 
 soundControlsContainer.appendChild(soundButton)
 soundControlsContainer.appendChild(frequencySliderLabel)
@@ -242,10 +257,9 @@ viewControlsContainer.appendChild(iterationDepthInput)
 viewControlsContainer.appendChild(accuracySliderLabel)
 viewControlsContainer.appendChild(accuracySlider)
 
-viewElementsContainer.appendChild(rawsampleSvg)
+viewElementsContainer.appendChild(rawSampleSvg)
 viewElementsContainer.appendChild(dftSvg)
 viewElementsContainer.appendChild(idftSvg)
-
 
 wrapper?.appendChild(headline)
 wrapper?.appendChild(soundControlsContainer)
@@ -253,13 +267,12 @@ wrapper?.appendChild(viewControlsContainer)
 wrapper?.appendChild(viewElementsContainer)
 
 rawCurvePath = drawLines(rawSample)
-rawsampleSvg.appendChild(rawCurvePath)
+rawSampleSvg.appendChild(rawCurvePath)
 
-dftSample = await dft(rawSample)
+
 dftPath = drawDots(dftSample, pixelHeight(dftSvg))
 dftSvg.appendChild(dftPath)
 
-let idftSample = idft(dftSample, accuracy)
 let idftPath = drawLines(idftSample)
 idftSvg.appendChild(idftPath)
 
@@ -268,38 +281,38 @@ let yOffset: number
 let mousedown = false
 
 
-rawsampleSvg.addEventListener("mousedown", (event) =>{
+rawSampleSvg.addEventListener("mousedown", (event) =>{
     mousedown = true
-    const coords = getSvgCoords(rawsampleSvg, event);
+    const coords = getSvgCoords(rawSampleSvg, event);
     xOffset = coords.x;
     yOffset = coords.y;
 })
 
-rawsampleSvg.addEventListener("mousemove", (event) =>{
+rawSampleSvg.addEventListener("mousemove", (event) =>{
     if(!mousedown)
         return
-    const coords = getSvgCoords(rawsampleSvg, event);
+    const coords = getSvgCoords(rawSampleSvg, event);
     xMin += xOffset - coords.x
     yMin += yOffset - coords.y
-    rawsampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
+    rawSampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
     
 })
 
-rawsampleSvg.addEventListener("mouseleave", () => {
+rawSampleSvg.addEventListener("mouseleave", () => {
     mousedown = false
 })
 
-rawsampleSvg.addEventListener("mouseup", ()=>{
+rawSampleSvg.addEventListener("mouseup", ()=>{
     mousedown = false
 })
 
-rawsampleSvg.addEventListener("wheel", (event) =>{
+rawSampleSvg.addEventListener("wheel", (event) =>{
     
     let deltaY = event.deltaY
-    const clientWidth = rawsampleSvg.getBoundingClientRect().width
-    const mouseX = event.x - rawsampleSvg.getBoundingClientRect().x
-    const clientHeight = rawsampleSvg.getBoundingClientRect().height
-    const mouseY = event.y - rawsampleSvg.getBoundingClientRect().y
+    const clientWidth = rawSampleSvg.getBoundingClientRect().width
+    const mouseX = event.x - rawSampleSvg.getBoundingClientRect().x
+    const clientHeight = rawSampleSvg.getBoundingClientRect().height
+    const mouseY = event.y - rawSampleSvg.getBoundingClientRect().y
 
     if(Math.abs(deltaY) < 100){
         if(deltaY <= 0)
@@ -317,7 +330,7 @@ rawsampleSvg.addEventListener("wheel", (event) =>{
     yMin -=(height - oldHeight) * mouseY / clientHeight 
     yMax = yMin + height
 
-    rawsampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
+    rawSampleSvg.setAttribute("viewBox", `${xMin} ${yMin} ${width} ${height}`)
     
 })
 
@@ -384,6 +397,11 @@ idftSvg.addEventListener("mousedown", (event) =>{
     xOffset = coords.x;
     yOffset = coords.y;
 })
+
+idftSvg.addEventListener("mouseleave", () =>{
+    mousedown = false
+})
+
 idftSvg.addEventListener("mousemove", (event) =>{
     if(!mousedown)
         return
@@ -443,53 +461,7 @@ function getSvgCoords(svgElement: SVGSVGElement, event: MouseEvent) {
 }
 
 
-function drawLines(samplePoints: Complex[]): SVGPathElement {
-    const sampleCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path")
 
-    if(samplePoints.length < 2){
-        console.warn("Not enough points to draw lines")
-        return sampleCurvePath
-    }
-    
-    let pathData = `M${samplePoints[0].real} ${samplePoints[0].imag}`
-    for(let i = 1; i<samplePoints.length; i++){
-        pathData += `L ${samplePoints[i].real} ${samplePoints[i].imag}`
-    }
-    
-    sampleCurvePath.setAttribute("id", "outlinePath")
-    sampleCurvePath.setAttribute("fill", "none")
-    sampleCurvePath.setAttribute("stroke", "black")
-    sampleCurvePath.setAttribute("stroke-width", ".5 px")
-    sampleCurvePath.setAttribute("vector-effect", "non-scaling-stroke")
-    sampleCurvePath.setAttribute("d", `${pathData}`)
-
-    return sampleCurvePath
-}
-
-function pixelHeight(svgElem: SVGSVGElement): number{
-    
-    return(svgElem.viewBox.baseVal.height / svgElem.getBoundingClientRect().height)
-}
-
-function drawDots(samplePoints: Complex[], pixelHeight: number): SVGPathElement {
-    const sampleCurvePath = document.createElementNS("http://www.w3.org/2000/svg", "path")
-    const strokeWidth = .5
-
-    console.log(pixelHeight)
-
-    let pathData = ""
-    for(let i = 1; i<samplePoints.length; i++){
-        pathData += `M ${samplePoints[i].real} ${samplePoints[i].imag} v ${pixelHeight}`
-    }
-    sampleCurvePath.setAttribute("id", "outlinePath")
-    sampleCurvePath.setAttribute("fill", "none")
-    sampleCurvePath.setAttribute("stroke", "black")
-    sampleCurvePath.setAttribute("stroke-width", `${strokeWidth}`)
-    sampleCurvePath.setAttribute("vector-effect", "non-scaling-stroke")
-    sampleCurvePath.setAttribute("d", `${pathData}`)
-
-    return sampleCurvePath
-}
 
 function drawExtrapolatedCurve(points: {index: number, value: number}[]): SVGPathElement{
     
