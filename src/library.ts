@@ -15,6 +15,7 @@ export interface IterationData {
 }
 
 export const storage: Map<number, IterationData> = new Map();
+export const soundStorage: Map<number, PeriodicWave> = new Map()
 
 async function calculateRawData(iterationDepth: number): Promise<Complex[]> {
   const outline = new MandelbrotOutline(iterationDepth);

@@ -2,7 +2,7 @@
 console.log("ver 2220")
 import WorkerURL from './waveformworker.ts?worker';
 import { MandelbrotOutline } from "./calcMandelbrotOutline.js";
-import { Complex, drawLines, drawDots, pixelHeight, mirrorX, dft, idft, extractValuesAsFloat32Array, storage, createOscillatorFromWaveform, stopSound} from "./library.js";
+import { Complex, drawLines, drawDots, pixelHeight, mirrorX, dft, idft, extractValuesAsFloat32Array, storage, createOscillatorFromWaveform, stopSound, soundStorage} from "./library.js";
 
 
 const wrapper = document.getElementById("wrapper")
@@ -60,7 +60,6 @@ idftSvg.setAttribute("width", `${idftSvgWidth}`)
 idftSvg.setAttribute("height", `${idftSvgHeight}`)
 idftSvg.setAttribute("viewBox", "-1.9 -1.25 2.5 2.5")
 
-
 const viewControlsContainer = document.createElement("div")
 viewControlsContainer.id = "viewControlsContainer"
 viewControlsContainer.style.border = "1px solid black"
@@ -91,6 +90,42 @@ soundButton.innerHTML = "oscillate boundary points"
 soundButton.style.width = "200px"
 let isPlaying = false
 
+const soundDepthSliderLabel = document.createElement("label")
+soundDepthSliderLabel.setAttribute("for", "soundDepthSlider")
+soundDepthSliderLabel.innerHTML = "sound-depth:"
+const soundDepthSlider = document.createElement("input")
+soundDepthSlider.type = "range"
+soundDepthSlider.min = "3"
+soundDepthSlider.max = `${iterationDepth}`
+soundDepthSlider.value = "2"
+soundDepthSlider.addEventListener("input", (event) =>{
+    if(isPlaying && oscillator){
+        if (soundStorage.get(Number(soundDepthSlider.value))){
+            const wave = soundStorage.get(Number(soundDepthSlider.value))
+            oscillator.setPeriodicWave(wave!)
+        } else{
+            if(storage.get(Number(soundDepthSlider.value))){
+                const wave = createWave(storage.get(Number(soundDepthSlider.value))?.dftSample!)
+                soundStorage.set(Number(soundDepthSlider.value), wave)
+            }else{
+                console.log("storage dont has no element at "+soundDepthSlider.value)
+            }
+            
+        }
+    }
+    console.log("sound-depth: "+soundDepthSlider.value)
+})
+
+
+function createWave(sample: Complex[]): PeriodicWave{
+    if(!audioContext){
+        audioContext = new AudioContext()
+    }
+    const wave = audioContext.createPeriodicWave(extractValuesAsFloat32Array(sample, "imag"), 
+    extractValuesAsFloat32Array(sample, "real"))
+    return wave
+}
+
 soundButton.addEventListener("click", ()=>{
     if(!audioContext){
         audioContext = new AudioContext()
@@ -101,34 +136,32 @@ soundButton.addEventListener("click", ()=>{
     if(!isPlaying){
         soundButton.textContent = "stop sound"
         console.log(sampleSelector.value)
-        let sample
+        let sample: Complex[]
         if (sampleSelector.value == "dft")
             sample = dftSample
         else    
         sample = rawSample
     
-    const wave = audioContext.createPeriodicWave(extractValuesAsFloat32Array(sample, "imag"), 
-    extractValuesAsFloat32Array(sample, "real")
-)
-oscillator.setPeriodicWave(wave)
-oscillator.connect(audioContext.destination)
-oscillator.frequency.value = parseInt(frequencySlider.value)
-oscillator.start()
-}
+        const wave = createWave(sample)
+        oscillator.setPeriodicWave(wave)
+        oscillator.connect(audioContext.destination)
+        oscillator.frequency.value = parseInt(frequencySlider.value)
+        oscillator.start()
+    }
 
-if(isPlaying){
-    if (oscillator) {
-        oscillator.stop();
-        oscillator.disconnect();
-        oscillator = null;
-    }
+    if(isPlaying){
+        if (oscillator) {
+            oscillator.stop();
+            oscillator.disconnect();
+            oscillator = null;
+        }
     
-    if (audioContext) {
-        audioContext.close();
-        audioContext = null;
+        if (audioContext) {
+            audioContext.close();
+            audioContext = null;
+        }
+        soundButton.textContent = "oscillate boundary points"
     }
-    soundButton.textContent = "oscillate boundary points"
-}
 isPlaying = !isPlaying
 
 })
@@ -191,7 +224,7 @@ const iterationDepthSlider = document.createElement("input")
 iterationDepthSlider.id = "iterationsSlider"
 iterationDepthSlider.type = "range"
 iterationDepthSlider.min = "3"
-iterationDepthSlider.max = `${iterationDepth}`
+iterationDepthSlider.max = `5`
 iterationDepthSlider.step = "1"
 iterationDepthSlider.value = `${iterationDepth}`
 iterationDepthSlider.addEventListener("input", async function(event){
@@ -234,6 +267,7 @@ iterationDepthSlider.addEventListener("input", async function(event){
     idftSvg.innerHTML = ""
     idftSvg.appendChild(drawLines(idftSample))
     */
+   soundDepthSlider.max = iterationDepthSlider.max
 })
 
 const iterationDepthInput = document.createElement("input")
@@ -249,6 +283,8 @@ iterationDepthInput.oninput = () =>{
 soundControlsContainer.appendChild(soundButton)
 soundControlsContainer.appendChild(frequencySliderLabel)
 soundControlsContainer.appendChild(frequencySlider)
+soundControlsContainer.appendChild(soundDepthSliderLabel)
+soundControlsContainer.appendChild(soundDepthSlider)
 soundControlsContainer.appendChild(sampleSelector)
 
 viewControlsContainer.appendChild(iterationDepthSliderLabel)

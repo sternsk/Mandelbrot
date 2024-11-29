@@ -6,6 +6,7 @@
 
   // src/library.ts
   var storage = /* @__PURE__ */ new Map();
+  var soundStorage = /* @__PURE__ */ new Map();
   function mirrorX(samplePoints) {
     const arrayLength = samplePoints.length;
     const mirroredPoints = [...samplePoints];
@@ -235,6 +236,40 @@
   soundButton.innerHTML = "oscillate boundary points";
   soundButton.style.width = "200px";
   var isPlaying = false;
+  var soundDepthSliderLabel = document.createElement("label");
+  soundDepthSliderLabel.setAttribute("for", "soundDepthSlider");
+  soundDepthSliderLabel.innerHTML = "sound-depth:";
+  var soundDepthSlider = document.createElement("input");
+  soundDepthSlider.type = "range";
+  soundDepthSlider.min = "3";
+  soundDepthSlider.max = `${iterationDepth}`;
+  soundDepthSlider.value = "2";
+  soundDepthSlider.addEventListener("input", (event) => {
+    if (isPlaying && oscillator) {
+      if (soundStorage.get(Number(soundDepthSlider.value))) {
+        const wave = soundStorage.get(Number(soundDepthSlider.value));
+        oscillator.setPeriodicWave(wave);
+      } else {
+        if (storage.get(Number(soundDepthSlider.value))) {
+          const wave = createWave(storage.get(Number(soundDepthSlider.value))?.dftSample);
+          soundStorage.set(Number(soundDepthSlider.value), wave);
+        } else {
+          console.log("storage dont has no element at " + soundDepthSlider.value);
+        }
+      }
+    }
+    console.log("sound-depth: " + soundDepthSlider.value);
+  });
+  function createWave(sample) {
+    if (!audioContext) {
+      audioContext = new AudioContext();
+    }
+    const wave = audioContext.createPeriodicWave(
+      extractValuesAsFloat32Array(sample, "imag"),
+      extractValuesAsFloat32Array(sample, "real")
+    );
+    return wave;
+  }
   soundButton.addEventListener("click", () => {
     if (!audioContext) {
       audioContext = new AudioContext();
@@ -250,10 +285,7 @@
         sample = dftSample;
       else
         sample = rawSample;
-      const wave = audioContext.createPeriodicWave(
-        extractValuesAsFloat32Array(sample, "imag"),
-        extractValuesAsFloat32Array(sample, "real")
-      );
+      const wave = createWave(sample);
       oscillator.setPeriodicWave(wave);
       oscillator.connect(audioContext.destination);
       oscillator.frequency.value = parseInt(frequencySlider.value);
@@ -321,7 +353,7 @@
   iterationDepthSlider.id = "iterationsSlider";
   iterationDepthSlider.type = "range";
   iterationDepthSlider.min = "3";
-  iterationDepthSlider.max = `${iterationDepth}`;
+  iterationDepthSlider.max = `5`;
   iterationDepthSlider.step = "1";
   iterationDepthSlider.value = `${iterationDepth}`;
   iterationDepthSlider.addEventListener("input", async function(event) {
@@ -354,6 +386,7 @@
     dftSample = dft(rawSample);
     dftSvg.innerHTML = "";
     dftSvg.appendChild(drawDots(dftSample, pixelHeight(dftSvg)));
+    soundDepthSlider.max = iterationDepthSlider.max;
   });
   var iterationDepthInput = document.createElement("input");
   iterationDepthInput.type = "number";
@@ -366,6 +399,8 @@
   soundControlsContainer.appendChild(soundButton);
   soundControlsContainer.appendChild(frequencySliderLabel);
   soundControlsContainer.appendChild(frequencySlider);
+  soundControlsContainer.appendChild(soundDepthSliderLabel);
+  soundControlsContainer.appendChild(soundDepthSlider);
   soundControlsContainer.appendChild(sampleSelector);
   viewControlsContainer.appendChild(iterationDepthSliderLabel);
   viewControlsContainer.appendChild(iterationDepthSlider);
