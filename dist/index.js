@@ -3,26 +3,6 @@
   var __defProp = Object.defineProperty;
   var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
   var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-  var __async = (__this, __arguments, generator) => {
-    return new Promise((resolve, reject) => {
-      var fulfilled = (value) => {
-        try {
-          step(generator.next(value));
-        } catch (e) {
-          reject(e);
-        }
-      };
-      var rejected = (value) => {
-        try {
-          step(generator.throw(value));
-        } catch (e) {
-          reject(e);
-        }
-      };
-      var step = (x) => x.done ? resolve(x.value) : Promise.resolve(x.value).then(fulfilled, rejected);
-      step((generator = generator.apply(__this, __arguments)).next());
-    });
-  };
 
   // src/calcMandelbrotOutline.ts
   var boundaryPoints = [];
@@ -62,9 +42,11 @@
         boundaryPoints.push(actualPoint);
       }
       if (!mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))) {
-        if (mandelbrot(add(actualPoint, scale(directionVector, sampleLength / 2)))) {
+        while (mandelbrot(add(actualPoint, scale(directionVector, sampleLength / 2)))) {
           console.log("actualPoint + directionVector is not, but actualPoint + directionVector/2 is inside the Mandelbrot");
-          directionVector = rotate(directionVector, 2 * sampleAngle);
+          directionVector = rotate(directionVector, sampleAngle);
+          const endPoint = add(actualPoint, scale(directionVector, sampleLength / 2));
+          allSteps.push({ startPoint: actualPoint, endPoint, color: "blue" });
         }
         while (!mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))) {
           const endPoint = add(actualPoint, scale(directionVector, sampleLength));
@@ -174,7 +156,6 @@
     }
     // Grenzlinie berechnen und plotten
     drawCloud() {
-      var _a;
       this.boundaryPoints = [];
       const sampleWidth = (xMax - xMin) / overviewSvgWidth;
       const sampleHeight = (yMax - yMin) / overviewSvgHeight;
@@ -188,7 +169,7 @@
       }
       const outlinePath2 = document.getElementById("outlinePath");
       const oldCloudPath = document.getElementById("cloudPath");
-      (_a = oldCloudPath == null ? void 0 : oldCloudPath.parentNode) == null ? void 0 : _a.removeChild(oldCloudPath);
+      oldCloudPath?.parentNode?.removeChild(oldCloudPath);
       const cloudPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
       cloudPath.setAttribute("fill", "none");
       cloudPath.setAttribute("stroke", "darkblue");
@@ -214,20 +195,18 @@
   // src/library.ts
   var audioContext = null;
   var oscillator = null;
-  function createOscillatorFromWaveform(data) {
-    return __async(this, null, function* () {
-      if (!audioContext) {
-        audioContext = new AudioContext();
-      }
-      oscillator = audioContext.createOscillator();
-      const realValues = new Float32Array(data.map((point) => point.real));
-      const imagValues = new Float32Array(data.map((point) => point.imag));
-      const wave = audioContext.createPeriodicWave(realValues, imagValues);
-      oscillator.setPeriodicWave(wave);
-      oscillator.connect(audioContext.destination);
-      oscillator.frequency.value = parseFloat(frequencySlider.value);
-      oscillator.start();
-    });
+  async function createOscillatorFromWaveform(data) {
+    if (!audioContext) {
+      audioContext = new AudioContext();
+    }
+    oscillator = audioContext.createOscillator();
+    const realValues = new Float32Array(data.map((point) => point.real));
+    const imagValues = new Float32Array(data.map((point) => point.imag));
+    const wave = audioContext.createPeriodicWave(realValues, imagValues);
+    oscillator.setPeriodicWave(wave);
+    oscillator.connect(audioContext.destination);
+    oscillator.frequency.value = parseFloat(frequencySlider.value);
+    oscillator.start();
   }
   function stopSound() {
     if (oscillator) {
@@ -304,7 +283,7 @@
   iterationsSlider.id = "iterationsSlider";
   iterationsSlider.type = "range";
   iterationsSlider.min = "2";
-  iterationsSlider.max = "14";
+  iterationsSlider.max = "25";
   iterationsSlider.step = "1";
   iterationsSlider.value = `${iterationDepth}`;
   var xMinSliderLabel = document.createElement("label");
@@ -386,10 +365,10 @@
   var yDataLine = drawExtrapolatedCurve(extrapolate(boundaryPoints, "imag"));
   xDataSvg.appendChild(xDataLine);
   yDataSvg.appendChild(yDataLine);
-  wrapper == null ? void 0 : wrapper.appendChild(headline);
-  wrapper == null ? void 0 : wrapper.appendChild(soundControlsContainer);
-  wrapper == null ? void 0 : wrapper.appendChild(viewControlsContainer);
-  wrapper == null ? void 0 : wrapper.appendChild(viewElementsContainer);
+  wrapper?.appendChild(headline);
+  wrapper?.appendChild(soundControlsContainer);
+  wrapper?.appendChild(viewControlsContainer);
+  wrapper?.appendChild(viewElementsContainer);
   var mandelbrot2 = new Mandelbrot();
   window.onload = () => {
     mandelbrot2.drawCloud();

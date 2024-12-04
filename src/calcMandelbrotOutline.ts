@@ -81,10 +81,13 @@ export function calcMandelbrotOutline(){
         // cover the case, where we do not pierce into the set
         if(!mandelbrot(add(actualPoint, scale(directionVector, sampleLength)))){
         // test if actualPoint + directionVector/2 is inside the Mandelbrot
-            if(mandelbrot(add(actualPoint, scale(directionVector, sampleLength/2)))){
+            while(mandelbrot(add(actualPoint, scale(directionVector, sampleLength/2)))){
                 // adjust by rotating the directionvector away from the set
                 console.log("actualPoint + directionVector is not, but actualPoint + directionVector/2 is inside the Mandelbrot")
-                directionVector = rotate(directionVector, 2*sampleAngle)
+                directionVector = rotate(directionVector, sampleAngle)
+                const endPoint = add(actualPoint, scale(directionVector, sampleLength/2))
+                allSteps.push({startPoint: actualPoint, endPoint: endPoint, color: "blue"})
+                
             }
             while(!mandelbrot(add(actualPoint, scale(directionVector, sampleLength))))    {
                 const endPoint = add(actualPoint, scale(directionVector, sampleLength))

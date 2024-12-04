@@ -93,7 +93,7 @@ const iterationsSlider = document.createElement("input")
 iterationsSlider.id = "iterationsSlider"
 iterationsSlider.type = "range"
 iterationsSlider.min = "2"
-iterationsSlider.max = "14"
+iterationsSlider.max = "25"
 iterationsSlider.step = "1"
 iterationsSlider.value = `${iterationDepth}`
 
